@@ -1,0 +1,25 @@
+﻿  sphere.cpp
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(129): warning C4244: 'argument': conversion from 'double' to 'GLfloat', possible loss of data
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(131): warning C4244: 'argument': conversion from 'int' to 'GLfloat', possible loss of data
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(141): warning C4244: 'argument': conversion from 'double' to 'GLfloat', possible loss of data
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(143): warning C4244: 'argument': conversion from 'int' to 'GLfloat', possible loss of data
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(173): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(177): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(181): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(196): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(202): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(205): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(219): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(224): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(227): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(241): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(246): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(249): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(280): warning C4244: 'argument': conversion from 'double' to 'GLfloat', possible loss of data
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(283): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(283): warning C4244: 'argument': conversion from 'double' to 'GLfloat', possible loss of data
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(444): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(451): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(459): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+c:\users\sponberg lab\source\repos\sphere\sphere\sphere.cpp(467): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+  Sphere.vcxproj -> C:\Users\Sponberg Lab\source\repos\Sphere\Debug\Sphere.exe
