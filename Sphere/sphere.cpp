@@ -40,6 +40,37 @@ bool closedLoop = 0;
 bool horizontal = 0;
 bool spinning = 0;
 bool vertical = 1;
+const float R = 584.6207004;
+int single = 360;
+//const float R = 70;
+float weight = 1;
+int increment = 0;
+float CLangle = 0;
+float angVel = 0;
+float OLangle = 0;
+const float threshold = 0.0025;
+
+
+// for NIDAQ data handling
+int32       error = 0;
+TaskHandle  taskHandle = 0;
+int32       read;
+float64     data[1400700];
+float64		currentData[1400700];
+float64		currai0[200100];
+float64		currai1[200100];
+float64		currai2[200100];
+float64		currai3[200100];
+float64		currai4[200100];
+float64		currai5[200100];
+int64		currai6[200100];
+float64		currxp[200100];
+float64		currxpcl[200100];	// closed loop
+int32		queueit = 0;
+float64		bias0, bias1, bias2, bias3, bias4, bias5;
+
+char        errBuff[2048] = { '\0' };
+
 
 typedef struct
 {
@@ -98,6 +129,148 @@ bool WGLExtensionSupported(const char *extension_name)
 	// extension is supported
 	printf("\nExtension supported");
 	return true;
+}
+
+
+/*
+* Tests to see if the file exists.
+**/
+inline bool exists_test3(const std::string& name) {
+	struct stat buffer;
+	return (stat(name.c_str(), &buffer) == 0);
+}
+
+/*
+* Allows for the user to printout data obtain from NIDAQ channels.
+* Currently will start outputting to file after trigger has been pressed.
+**/
+void writeToFile() {
+	FILE * fileP = NULL;
+
+	time_t rawtime;
+	struct tm *info;
+	char buffer[80];
+
+	time(&rawtime);
+	info = localtime(&rawtime);
+	strftime(buffer, 80, "%m%d%Y", info);
+
+	char filename[80];
+	sprintf(filename, "./Data/Moth_FT_%s_%03d.txt", buffer, increment);
+	bool exists = exists_test3(filename);
+
+	while (exists) {
+		increment++;
+		sprintf(filename, "./Data/Moth_FT_%s_%03d.txt", buffer, increment);
+		//printf("\n%s", filename);
+		exists = exists_test3(filename);
+	}
+
+	fileP = fopen(filename, "w");
+	printf("\n%s", filename);
+
+	if (fileP != NULL) {
+		for (int i = 0; i < 200100; i++) {
+			int helperQueue = queueit + i;
+			if (helperQueue >= 200100) {
+				helperQueue -= 200100;
+			}
+			fprintf(fileP, "%f, %f, %f, %f, %f, %f, %f, %f, %lld\n", currxp[helperQueue], currxpcl[helperQueue], currai0[helperQueue], currai1[helperQueue], currai2[helperQueue], currai3[helperQueue], currai4[helperQueue], currai5[helperQueue], currai6[helperQueue]);
+		}
+		fclose(fileP);
+		increment++;
+		char gs[80];
+		char oc[80];
+		if (single) {
+			sprintf(gs, "Single Bar");
+		}
+		else {
+			sprintf(gs, "Grating");
+		}
+		if (closedLoop) {
+			sprintf(oc, "Closed");
+		}
+		else {
+			sprintf(oc, "Open");
+		}
+		printf("\nFreq = %f Hz, %s, %s, %f deg", 120.0 / delay, gs, oc, viewingAngle);
+	}
+	else {
+		printf("\nOur file cannot be written to");
+	}
+
+}
+
+/*
+*  Calculates the force along the x-axis, averaged over the most recent samples. The units are in Newtons.
+**/
+float64 calcFeedback() {
+	float64 avgai0 = 0;
+	for (int i = 0; i < read; i++) {
+		int32 j = queueit - read + i;
+		if (spinning) {
+			if (j < 0) {
+				avgai0 += currai4[j + 200100];
+			}
+			else {
+				avgai0 += currai4[j];
+			}
+		}
+		else if (horizontal) { //If horizontal, read from Tx
+			if (j < 0) {
+				avgai0 += currai3[j + 200100];
+			}
+			else {
+				avgai0 += currai3[j];
+			}
+		}
+		else {
+			if (j < 0) { //If vertical, read from Tz
+				avgai0 += currai5[j + 200100];
+			}
+			else {
+				avgai0 += currai5[j];
+			}
+		}
+	}
+	avgai0 = avgai0 / read;
+
+	return -avgai0;		// This is negative because the force transducer is backwards.
+}
+
+float64 biasing(float64 *readArray) {
+	float64 avgai = 0;
+	int ignore = 0;
+	for (int i = ignore; i < read; i++) {
+		int32 j = queueit - read + i;
+		if (j < 0) {
+			avgai += readArray[j + 200100];
+		}
+		else {
+			avgai += readArray[j];
+		}
+	}
+	avgai = avgai / (read - ignore);
+	return avgai;
+}
+
+/*
+* Allows for the conversion of voltages into force and torque.
+**/
+float64 * matrixMult(float64 ai0, float64 ai1, float64 ai2, float64 ai3, float64 ai4, float64 ai5) {
+
+	float64 Fx = ((-0.000352378) * ai0) + (0.020472451 * ai1) + ((-0.02633045) * ai2) + ((-0.688977299) * ai3) + (0.000378075 * ai4) + (0.710008955 * ai5);
+	float64 Fy = ((-0.019191418) * ai0) + (0.839003543 * ai1) + ((-0.017177775) * ai2) + ((-0.37643613) * ai3) + (0.004482987 * ai4) + ((-0.434163392) * ai5);
+	float64 Fz = (0.830046806 * ai0) + (0.004569748 * ai1) + (0.833562339 * ai2) + (0.021075403 * ai3) + (0.802936538 * ai4) + ((-0.001350335) * ai5);
+	float64 Tx = ((-0.316303442) * ai0) + (5.061378026 * ai1) + (4.614179159 * ai2) + ((-2.150699522) * ai3) + ((-4.341889297) * ai4) + ((-2.630773662) * ai5);
+	float64 Ty = ((-5.320003676) * ai0) + ((-0.156640061) * ai1) + (2.796170871 * ai2) + (4.206523866 * ai3) + (2.780562472 * ai4) + ((-4.252850011) * ai5);
+	float64 Tz = ((-0.056240509) * ai0) + (3.091367987 * ai1) + (0.122101875 * ai2) + (2.941467741 * ai3) + (0.005876647 * ai4) + (3.094672928 * ai5);
+
+	Tx = Tx + 94.5 * Fy;
+	Ty = Ty - 94.5 * Fx;
+
+	float64 transformedData[6] = { Fx, Fy, Fz, Tx, Ty, Tz };
+	return transformedData;
 }
 
 void DisplaySphere(double R, GLuint texture) {
@@ -167,7 +340,7 @@ void CreateSphere(double R, double H, double K, double Z) {
 
 		for (a = 0; a <= 360 - space; a += space) {
 
-			if (fmod(b,2 * viewingAngle) < viewingAngle + yp) {
+			if (fmod(b,2 * viewingAngle) < viewingAngle + yp && b <= single) {
 
 				//VERTEX[n].X = R * sin((a) / 180 * PI) * sin((b) / 180 * PI) - H;
 				VERTEX[n].X = R * sin((a) / 180 * PI) * cos((b) / 180 * PI) - H;
@@ -255,6 +428,85 @@ void CreateSphere(double R, double H, double K, double Z) {
 
 				n++;
 			}
+			else {
+				//VERTEX[n].X = R * sin((a) / 180 * PI) * sin((b) / 180 * PI) - H;
+				VERTEX[n].X = 0;
+
+
+				//VERTEX[n].Y = R * cos((a) / 180 * PI) * sin((b) / 180 * PI) + K;
+				VERTEX[n].Y = 0;
+
+
+				//VERTEX[n].Z = R * cos((b) / 180 * PI) - Z;
+				VERTEX[n].Z = 0;
+
+
+				VERTEX[n].V = 0;
+
+				VERTEX[n].U = 0;
+
+				n++;
+
+
+
+				//VERTEX[n].X = R * sin((a) / 180 * PI) * sin((b) / 180 * PI) - H;
+				VERTEX[n].X = 0;
+
+
+				//VERTEX[n].Y = R * cos((a) / 180 * PI) * sin((b) / 180 * PI) + K;
+				VERTEX[n].Y = 0;
+
+
+				//VERTEX[n].Z = R * cos((b) / 180 * PI) - Z;
+				VERTEX[n].Z = 0;
+
+
+				VERTEX[n].V = 0;
+
+				VERTEX[n].U = 0;
+
+				n++;
+
+
+
+				//VERTEX[n].X = R * sin((a) / 180 * PI) * sin((b) / 180 * PI) - H;
+				VERTEX[n].X = 0;
+
+
+				//VERTEX[n].Y = R * cos((a) / 180 * PI) * sin((b) / 180 * PI) + K;
+				VERTEX[n].Y = 0;
+
+
+				//VERTEX[n].Z = R * cos((b) / 180 * PI) - Z;
+				VERTEX[n].Z = 0;
+
+
+				VERTEX[n].V = 0;
+
+				VERTEX[n].U = 0;
+
+				n++;
+
+
+
+				//VERTEX[n].X = R * sin((a) / 180 * PI) * sin((b) / 180 * PI) - H;
+				VERTEX[n].X = 0;
+
+
+				//VERTEX[n].Y = R * cos((a) / 180 * PI) * sin((b) / 180 * PI) + K;
+				VERTEX[n].Y = 0;
+
+
+				//VERTEX[n].Z = R * cos((b) / 180 * PI) - Z;
+				VERTEX[n].Z = 0;
+
+
+				VERTEX[n].V = 0;
+
+				VERTEX[n].U = 0;
+
+				n++;
+			}
 
 
 		}
@@ -275,12 +527,66 @@ void display(void) {
 
 
 	//glTranslatef(0, 0, -10);
+	//glTranslatef(0, 0, -1000);
 
+	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, -1, -1.0, DAQmx_Val_GroupByChannel, currentData, 1400700, &read, NULL));
+	goto Skip;
+
+Error:
+	if (DAQmxFailed(error)) {
+		DAQmxGetExtendedErrorInfo(errBuff, 2048);
+		printf("\nDAQmx Error: %s\n", errBuff);
+	}
+
+Skip:
+	for (int i = 0; i < read; i++) {
+		if (queueit >= 200100) {
+			queueit = 0;
+		}
+		//printf("%f\n", currentData[i]);
+		float64 * tempData = matrixMult((currentData[i] - bias0), (currentData[i + read] - bias1), (currentData[i + (read * 2)] - bias2), (currentData[i + (read * 3)] - bias3), (currentData[i + (read * 4)] - bias4), (currentData[i + (read * 5)] - bias5));
+		currai0[queueit] = tempData[0];
+		//printf("%f", tempData[0]);
+		currai1[queueit] = tempData[1];
+		currai2[queueit] = tempData[2];
+		currai3[queueit] = tempData[3];
+		currai4[queueit] = tempData[4];
+		currai5[queueit] = tempData[5];
+		currai6[queueit] = (int64)currentData[i + (read * 6)];
+		//currxp[queueit] = tempxp;
+		currxp[queueit] = OLangle;
+		//currxpcl[queueit] = tempxp - aggrlx;
+		currxpcl[queueit] = OLangle + CLangle;
+		queueit++;
+	}
+
+	if (closedLoop) {
+		float T = calcFeedback();
+		if (abs(T) < threshold) {
+			T = 0;
+		}
+		float angAcc = (float)(T / (2.43 / 10000000.0)) * (1.0 / 120.0) * (1.0 / 120.0);
+		CLangle += (float)((angAcc / 2) * (read * (1.0 / 10000.0) * 120.0) * (read * (1.0 / 10000.0) * 120.0) + angVel * (read * (1.0 / 10000.0) * 120.0)) * (180.0 / PI);
+		angVel += (float)angAcc * (read * (1.0 / 10000.0) * 120.0);
+		printf("\n%f", T);
+	}
+
+	//float OLangle = 0;
 	if (drifting) {
-		glRotatef(driftVel * angle, horizontal, vertical, spinning);
+		OLangle = driftVel * angle;
+		//glRotatef(driftVel * angle, horizontal, vertical, spinning);
 	}
 	else {
-		glRotatef((180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0, horizontal, vertical, spinning);
+		OLangle = (180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0;
+		//glRotatef((180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0, horizontal, vertical, spinning);
+	}
+
+	if (closedLoop) {
+		glRotatef(OLangle + CLangle, horizontal, vertical, spinning);
+		//printf("\n%f", CLangle);
+	}
+	else {
+		glRotatef(OLangle, horizontal, vertical, spinning);
 	}
 
 	if (!clear) {
@@ -291,7 +597,7 @@ void display(void) {
 
 	glutSwapBuffers();
 
-	angle++;
+	angle++; //Not really the angle, more like the time step incrementing thing.
 }
 
 /*
@@ -377,56 +683,24 @@ void letter_pressed(unsigned char key, int x, int y) {
 		}
 		glutPostRedisplay();
 		break;
+		*/
 	case 49: //1 will make stimulus single bar
-		bars[0] = 0;
-		bars[1] = 0;
-		bars[2] = 0;
-		bars[3] = 0;
-		bars[4] = 0;
-		bars[5] = 0;
-		bars[6] = 0;
-		bars[7] = 0;
-		bars[8] = 0;
-		bars[9] = 0;
-		bars[10] = 0;
-		bars[11] = 0;
-		bars[12] = 0;
-		bars[13] = 0;
-		bars[14] = 0;
-		bars[15] = 0;
-		bars[16] = 0;
-		bars[17] = 0;
+		single = viewingAngle;
+		CreateSphere(R, 0, 0, 0);
 		glutPostRedisplay();
 		break;
 	case 50: //2 will make stimulus 5-bar grate
-		bars[0] = -32;
-		bars[1] = -28;
-		bars[2] = -24;
-		bars[3] = -20;
-		bars[4] = -16;
-		bars[5] = -12;
-		bars[6] = -8;
-		bars[7] = -4;
-		bars[8] = 0;
-		bars[9] = 4;
-		bars[10] = 8;
-		bars[11] = 12;
-		bars[12] = 16;
-		bars[13] = 20;
-		bars[14] = 24;
-		bars[15] = 28;
-		bars[16] = 32;
-		bars[17] = 36;
+		single = 360;
+		CreateSphere(R, 0, 0, 0);
 		glutPostRedisplay();
 		break;
-		*/
 	case 86: //V will request viewing angle
 		printf("\nInput viewing angle in degrees: ");
 		scanf("%f", &degree);
 		viewingAngle = degree;
 		//barwidth = (float) 0.307975 * tanf(degree * PI / (2.0 * 180.0)) * 1342.281879;
 		printf("%f", viewingAngle);
-		CreateSphere(70, 0, 0, 0);
+		CreateSphere(R, 0, 0, 0);
 		glutPostRedisplay();
 		break;
 	case 118: //v will request viewing angle
@@ -435,7 +709,7 @@ void letter_pressed(unsigned char key, int x, int y) {
 		viewingAngle = degree;
 		//barwidth = (float) 0.307975 * tanf(degree * PI / (2.0 * 180.0)) * 1342.281879;
 		printf("%f", viewingAngle);
-		CreateSphere(70, 0, 0, 0);
+		CreateSphere(R, 0, 0, 0);
 		glutPostRedisplay();
 		break;
 	case 70: //F will request frequency
@@ -551,7 +825,9 @@ void init(void) {
 
 	//texture[0] = LoadTextureRAW(“earth.raw”);
 
-	CreateSphere(70, 0, 0, 0);
+	//CreateSphere(70, 0, 0, 0);
+	CreateSphere(R, 0, 0, 0);
+
 }
 void reshape(int w, int h) {
 
@@ -561,18 +837,80 @@ void reshape(int w, int h) {
 
 	glLoadIdentity();
 
-	gluPerspective(60, (GLfloat)w / (GLfloat)h, 0.1, 100.0);
+	//gluPerspective(60, (GLfloat)w / (GLfloat)h, 0.1, 100.0);
+	gluPerspective(90, (GLfloat)w / (GLfloat)h, 0.1, 1000.0);
+
 
 	glMatrixMode(GL_MODELVIEW);
 }
 
 int main(int argc, char **argv) {
 
+	PFNWGLSWAPINTERVALEXTPROC       wglSwapIntervalEXT = NULL;
+	PFNWGLGETSWAPINTERVALEXTPROC    wglGetSwapIntervalEXT = NULL;
+	float tempWeight;
+	//printf("Press left or right arrows to move our rectangle\n");
+	printf("Enter the weight of the moth in grams: ");
+	scanf("%f", &tempWeight);
+	weight = tempWeight / 1000;
+	printf("Please wait about 20 seconds\n");
+	/*
+	** Add the closed-loop stuff here.
+	*/
+
+	// DAQmx analog voltage channel and timing parameters
+	DAQmxErrChk(DAQmxCreateTask("", &taskHandle));
+
+	// IMPORTANT
+	//changed Dev1 to Dev5 as the connection established. So verify what Dev is being used to update this code. DEV5 is our force torque.
+	DAQmxErrChk(DAQmxCreateAIVoltageChan(taskHandle, "Dev1/ai0:6", "", DAQmx_Val_Diff, -10.0, 10.0, DAQmx_Val_Volts, NULL));
+	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle, "", 10000.0, DAQmx_Val_Rising, DAQmx_Val_ContSamps, 200100));
+	// DAQmx Start Code
+	DAQmxErrChk(DAQmxStartTask(taskHandle));
+	//printf("\ngot here");
+	// DAQmx Read Code
+	//printf("%f\n", data[0]);
+	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, 200100, -1.0, DAQmx_Val_GroupByChannel, data, 1400700, &read, NULL));
+	//printf("%f\n", data[0]);
+	//printf("\ngot passed through analog");
+	//printf("%f\n", data[199999]);
+	//bias = data[0];
+	// Stop and clear task
+	printf("Acquired %d samples\n", (int)read);
+	//printf("%f\n", data[199999]);
+	//printf("Acquired %d samples\n", (int)read);
+	printf("\ngot passed through analog");
+	printf("\n%f\n", data[1199999]);
+	for (int i = 0; i < read; i++) {
+		if (queueit >= 200100) {
+			queueit = 0;
+		}
+		currai0[queueit] = data[i];
+		currai1[queueit] = data[i + read];
+		currai2[queueit] = data[i + (read * 2)];
+		currai3[queueit] = data[i + (read * 3)];
+		currai4[queueit] = data[i + (read * 4)];
+		currai5[queueit] = data[i + (read * 5)];
+		currai6[queueit] = (int64)data[i + (read * 6)]; //our trigger buttom. Must be floored to 0 or 1.
+		queueit++;
+	}
+	bias0 = biasing(currai0);
+	bias1 = biasing(currai1);
+	bias2 = biasing(currai2);
+	bias3 = biasing(currai3);
+	bias4 = biasing(currai4);
+	bias5 = biasing(currai5);
+	writeToFile();
+
+	/*
+	** This is where the closed-loop stuff ends
+	*/
+
 	glutInit(&argc, argv);
 
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH);
 
-	glutInitWindowSize(500, 500);
+	glutInitWindowSize(800, 454);
 
 	glutInitWindowPosition(100, 100);
 
@@ -580,8 +918,7 @@ int main(int argc, char **argv) {
 
 	init();
 
-	PFNWGLSWAPINTERVALEXTPROC       wglSwapIntervalEXT = NULL;
-	PFNWGLGETSWAPINTERVALEXTPROC    wglGetSwapIntervalEXT = NULL;
+	
 
 	if (WGLExtensionSupported("WGL_EXT_swap_control"))
 	{
@@ -603,6 +940,18 @@ int main(int argc, char **argv) {
 
 	glutKeyboardFunc(letter_pressed);
 
+	goto Skip;
+Error:
+	if (DAQmxFailed(error))
+		DAQmxGetExtendedErrorInfo(errBuff, 2048);
+	if (taskHandle != 0) {
+		DAQmxStopTask(taskHandle);
+		DAQmxClearTask(taskHandle);
+	}
+	if (DAQmxFailed(error))
+		printf("\nDAQmx Error: %s\n", errBuff);
+	getchar();
+Skip:
 	glutMainLoop();
 
 	return 0;
