@@ -33,7 +33,7 @@ bool clear;
 int yp;
 int centering = 0;
 float viewingAngle = 10;
-float delay = 120;
+float delay = 1200; //0.1 Hz
 bool drifting = 0;
 float driftVel = 10;
 bool closedLoop = 0;
@@ -49,6 +49,9 @@ float CLangle = 0;
 float angVel = 0;
 float OLangle = 0;
 const float threshold = 0.0025;
+int window1; //Main window
+int window2;
+int window3;
 
 
 // for NIDAQ data handling
@@ -283,14 +286,48 @@ void DisplaySphere(double R, GLuint texture) {
 
 
 	if (horizontal) {
-		glRotatef(90, 0, 1, 0);
-	}
-	else if (vertical) {
+		//glRotatef(90, 0, 1, 0);
+		switch ((int) R) {
+		case 2:
+			glRotatef(90, 1, 0, 0);
+			break;
+		case 3:
+			glRotatef(-90, 1, 0, 0);
+			break;
+		default:
+			break;
+		}
 		glRotatef(90, 1, 0, 0);
 	}
+	else if (vertical) {
+		//glRotatef(90, 1, 0, 0);
+		switch ((int)R) {
+		case 2:
+			glRotatef(90, 1, 0, 0);
+			break;
+		case 3:
+			glRotatef(-90, 1, 0, 0);
+			break;
+		default:
+			break;
+		}
+		glRotatef(90, 0, 1, 0);
+	}
+	else {
+		switch ((int)R) {
+		case 2:
+			glRotatef(90, 1, 0, 0);
+			break;
+		case 3:
+			glRotatef(-90, 1, 0, 0);
+			break;
+		default:
+			break;
+		}
+	}
 
 
-	glBindTexture(GL_TEXTURE_2D, texture);
+	//glBindTexture(GL_TEXTURE_2D, texture);
 
 
 
@@ -319,6 +356,7 @@ void DisplaySphere(double R, GLuint texture) {
 	}
 
 	glEnd();
+	
 }
 void CreateSphere(double R, double H, double K, double Z) {
 
@@ -529,6 +567,7 @@ void display(void) {
 	//glTranslatef(0, 0, -10);
 	//glTranslatef(0, 0, -1000);
 
+	/*
 	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, -1, -1.0, DAQmx_Val_GroupByChannel, currentData, 1400700, &read, NULL));
 	goto Skip;
 
@@ -539,6 +578,7 @@ Error:
 	}
 
 Skip:
+	
 	for (int i = 0; i < read; i++) {
 		if (queueit >= 200100) {
 			queueit = 0;
@@ -559,6 +599,192 @@ Skip:
 		currxpcl[queueit] = OLangle + CLangle;
 		queueit++;
 	}
+	*/
+	/*
+	if (closedLoop) {
+		float T = calcFeedback();
+		if (abs(T) < threshold) {
+			T = 0;
+		}
+		float angAcc = (float)(T / (2.43 / 10000000.0)) * (1.0 / 120.0) * (1.0 / 120.0);
+		CLangle += (float)((angAcc / 2) * (read * (1.0 / 10000.0) * 120.0) * (read * (1.0 / 10000.0) * 120.0) + angVel * (read * (1.0 / 10000.0) * 120.0)) * (180.0 / PI);
+		angVel += (float)angAcc * (read * (1.0 / 10000.0) * 120.0);
+		printf("\n%f", T);
+	}
+
+	//float OLangle = 0;
+	if (drifting) {
+		OLangle = driftVel * angle;
+		//glRotatef(driftVel * angle, horizontal, vertical, spinning);
+	}
+	else {
+		OLangle = (180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0;
+		//glRotatef((180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0, horizontal, vertical, spinning);
+	}
+
+	if (closedLoop) {
+		glRotatef(OLangle + CLangle, horizontal, vertical, spinning);
+		//printf("\n%f", CLangle);
+	}
+	else {
+		//glRotatef(OLangle, horizontal, vertical, spinning);
+		glRotatef(OLangle, vertical, horizontal, spinning);
+	}
+
+	if (!clear) {
+		DisplaySphere(5, texture[0]);
+	}
+	*/
+
+
+	//glutSwapBuffers();
+
+	angle++; //Not really the angle, more like the time step incrementing thing.
+	glutSetWindow(window1);
+	glutPostRedisplay();
+	glutSetWindow(window2);
+	glutPostRedisplay();
+	glutSetWindow(window3);
+	glutPostRedisplay();
+}
+
+void display1(void) {
+
+	glClearDepth(1);
+
+	glClearColor(0.0, 0.0, 0.0, 1.0);
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glLoadIdentity();
+
+
+
+	//glTranslatef(0, 0, -10);
+	//glTranslatef(0, 0, -1000);
+
+	/*
+	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, -1, -1.0, DAQmx_Val_GroupByChannel, currentData, 1400700, &read, NULL));
+	goto Skip;
+
+	Error:
+	if (DAQmxFailed(error)) {
+	DAQmxGetExtendedErrorInfo(errBuff, 2048);
+	printf("\nDAQmx Error: %s\n", errBuff);
+	}
+
+	Skip:
+
+	for (int i = 0; i < read; i++) {
+	if (queueit >= 200100) {
+	queueit = 0;
+	}
+	//printf("%f\n", currentData[i]);
+	float64 * tempData = matrixMult((currentData[i] - bias0), (currentData[i + read] - bias1), (currentData[i + (read * 2)] - bias2), (currentData[i + (read * 3)] - bias3), (currentData[i + (read * 4)] - bias4), (currentData[i + (read * 5)] - bias5));
+	currai0[queueit] = tempData[0];
+	//printf("%f", tempData[0]);
+	currai1[queueit] = tempData[1];
+	currai2[queueit] = tempData[2];
+	currai3[queueit] = tempData[3];
+	currai4[queueit] = tempData[4];
+	currai5[queueit] = tempData[5];
+	currai6[queueit] = (int64)currentData[i + (read * 6)];
+	//currxp[queueit] = tempxp;
+	currxp[queueit] = OLangle;
+	//currxpcl[queueit] = tempxp - aggrlx;
+	currxpcl[queueit] = OLangle + CLangle;
+	queueit++;
+	}
+	*/
+	
+	if (closedLoop) {
+		float T = calcFeedback();
+		if (abs(T) < threshold) {
+			T = 0;
+		}
+		float angAcc = (float)(T / (2.43 / 10000000.0)) * (1.0 / 120.0) * (1.0 / 120.0);
+		CLangle += (float)((angAcc / 2) * (read * (1.0 / 10000.0) * 120.0) * (read * (1.0 / 10000.0) * 120.0) + angVel * (read * (1.0 / 10000.0) * 120.0)) * (180.0 / PI);
+		angVel += (float)angAcc * (read * (1.0 / 10000.0) * 120.0);
+		printf("\n%f", T);
+	}
+
+	//float OLangle = 0;
+	if (drifting) {
+		OLangle = driftVel * angle;
+		//glRotatef(driftVel * angle, horizontal, vertical, spinning);
+	}
+	else {
+		OLangle = (180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0;
+		//glRotatef((180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0, horizontal, vertical, spinning);
+	}
+
+	if (closedLoop) {
+		glRotatef(OLangle + CLangle, horizontal, vertical, spinning);
+		//printf("\n%f", CLangle);
+	}
+	else {
+		//glRotatef(OLangle, horizontal, vertical, spinning);
+		glRotatef(OLangle, vertical, horizontal, spinning);
+	}
+
+	if (!clear) {
+		DisplaySphere(1, texture[0]);
+	}
+	
+
+	glutSwapBuffers();
+
+	angle; //Not really the angle, more like the time step incrementing thing.
+}
+
+void display2(void) {
+
+	glClearDepth(1);
+
+	glClearColor(0.0, 0.0, 0.0, 1.0);
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glLoadIdentity();
+
+
+
+	//glTranslatef(0, 0, -10);
+	//glTranslatef(0, 0, -1000);
+
+	/*
+	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, -1, -1.0, DAQmx_Val_GroupByChannel, currentData, 1400700, &read, NULL));
+	goto Skip;
+
+	Error:
+	if (DAQmxFailed(error)) {
+	DAQmxGetExtendedErrorInfo(errBuff, 2048);
+	printf("\nDAQmx Error: %s\n", errBuff);
+	}
+
+	Skip:
+
+	for (int i = 0; i < read; i++) {
+	if (queueit >= 200100) {
+	queueit = 0;
+	}
+	//printf("%f\n", currentData[i]);
+	float64 * tempData = matrixMult((currentData[i] - bias0), (currentData[i + read] - bias1), (currentData[i + (read * 2)] - bias2), (currentData[i + (read * 3)] - bias3), (currentData[i + (read * 4)] - bias4), (currentData[i + (read * 5)] - bias5));
+	currai0[queueit] = tempData[0];
+	//printf("%f", tempData[0]);
+	currai1[queueit] = tempData[1];
+	currai2[queueit] = tempData[2];
+	currai3[queueit] = tempData[3];
+	currai4[queueit] = tempData[4];
+	currai5[queueit] = tempData[5];
+	currai6[queueit] = (int64)currentData[i + (read * 6)];
+	//currxp[queueit] = tempxp;
+	currxp[queueit] = OLangle;
+	//currxpcl[queueit] = tempxp - aggrlx;
+	currxpcl[queueit] = OLangle + CLangle;
+	queueit++;
+	}
+	*/
 
 	if (closedLoop) {
 		float T = calcFeedback();
@@ -586,18 +812,111 @@ Skip:
 		//printf("\n%f", CLangle);
 	}
 	else {
-		glRotatef(OLangle, horizontal, vertical, spinning);
+		//glRotatef(OLangle, horizontal, vertical, spinning);
+		glRotatef(OLangle, vertical, spinning, -horizontal);
 	}
 
 	if (!clear) {
-		DisplaySphere(5, texture[0]);
+		//glRotatef(90, 1, 0, 0);
+		DisplaySphere(2, texture[0]);
 	}
 
 
 
 	glutSwapBuffers();
 
-	angle++; //Not really the angle, more like the time step incrementing thing.
+	//angle++; //Not really the angle, more like the time step incrementing thing.
+}
+
+void display3(void) {
+
+	glClearDepth(1);
+
+	glClearColor(0.0, 0.0, 0.0, 1.0);
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glLoadIdentity();
+
+
+
+	//glTranslatef(0, 0, -10);
+	//glTranslatef(0, 0, -1000);
+
+	/*
+	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, -1, -1.0, DAQmx_Val_GroupByChannel, currentData, 1400700, &read, NULL));
+	goto Skip;
+
+	Error:
+	if (DAQmxFailed(error)) {
+	DAQmxGetExtendedErrorInfo(errBuff, 2048);
+	printf("\nDAQmx Error: %s\n", errBuff);
+	}
+
+	Skip:
+
+	for (int i = 0; i < read; i++) {
+	if (queueit >= 200100) {
+	queueit = 0;
+	}
+	//printf("%f\n", currentData[i]);
+	float64 * tempData = matrixMult((currentData[i] - bias0), (currentData[i + read] - bias1), (currentData[i + (read * 2)] - bias2), (currentData[i + (read * 3)] - bias3), (currentData[i + (read * 4)] - bias4), (currentData[i + (read * 5)] - bias5));
+	currai0[queueit] = tempData[0];
+	//printf("%f", tempData[0]);
+	currai1[queueit] = tempData[1];
+	currai2[queueit] = tempData[2];
+	currai3[queueit] = tempData[3];
+	currai4[queueit] = tempData[4];
+	currai5[queueit] = tempData[5];
+	currai6[queueit] = (int64)currentData[i + (read * 6)];
+	//currxp[queueit] = tempxp;
+	currxp[queueit] = OLangle;
+	//currxpcl[queueit] = tempxp - aggrlx;
+	currxpcl[queueit] = OLangle + CLangle;
+	queueit++;
+	}
+	*/
+
+	if (closedLoop) {
+		float T = calcFeedback();
+		if (abs(T) < threshold) {
+			T = 0;
+		}
+		float angAcc = (float)(T / (2.43 / 10000000.0)) * (1.0 / 120.0) * (1.0 / 120.0);
+		CLangle += (float)((angAcc / 2) * (read * (1.0 / 10000.0) * 120.0) * (read * (1.0 / 10000.0) * 120.0) + angVel * (read * (1.0 / 10000.0) * 120.0)) * (180.0 / PI);
+		angVel += (float)angAcc * (read * (1.0 / 10000.0) * 120.0);
+		printf("\n%f", T);
+	}
+
+	//float OLangle = 0;
+	if (drifting) {
+		OLangle = driftVel * angle;
+		//glRotatef(driftVel * angle, horizontal, vertical, spinning);
+	}
+	else {
+		OLangle = (180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0;
+		//glRotatef((180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0, horizontal, vertical, spinning);
+	}
+
+	if (closedLoop) {
+		glRotatef(OLangle + CLangle, horizontal, vertical, spinning);
+		//printf("\n%f", CLangle);
+	}
+	else {
+		//glRotatef(OLangle, horizontal, vertical, spinning);
+		glRotatef(-OLangle, vertical, spinning, horizontal);
+	}
+
+	if (!clear) {
+		//glRotatef(-90, 1, 1, 1);
+		DisplaySphere(3, texture[0]);
+	}
+
+
+
+	glutSwapBuffers();
+
+	//angle++; //Not really the angle, more like the time step incrementing thing.
 }
 
 /*
@@ -844,21 +1163,55 @@ void reshape(int w, int h) {
 	glMatrixMode(GL_MODELVIEW);
 }
 
+void reshape2(int w, int h) {
+
+	glViewport(0, 0, (GLsizei)w, (GLsizei)h);
+
+	glMatrixMode(GL_PROJECTION);
+
+	glLoadIdentity();
+
+	//gluPerspective(60, (GLfloat)w / (GLfloat)h, 0.1, 100.0);
+	gluPerspective(90, (GLfloat)w / (GLfloat)h, 0.1, 1000.0);
+
+
+	glMatrixMode(GL_MODELVIEW);
+}
+
+void reshape3(int w, int h) {
+
+	glViewport(0, 0, (GLsizei)w, (GLsizei)h);
+
+	glMatrixMode(GL_PROJECTION);
+
+	glLoadIdentity();
+
+	//gluPerspective(60, (GLfloat)w / (GLfloat)h, 0.1, 100.0);
+	gluPerspective(90, (GLfloat)w / (GLfloat)h, 0.1, 1000.0);
+
+
+	glMatrixMode(GL_MODELVIEW);
+}
+
 int main(int argc, char **argv) {
 
 	PFNWGLSWAPINTERVALEXTPROC       wglSwapIntervalEXT = NULL;
 	PFNWGLGETSWAPINTERVALEXTPROC    wglGetSwapIntervalEXT = NULL;
 	float tempWeight;
 	//printf("Press left or right arrows to move our rectangle\n");
+	/*
 	printf("Enter the weight of the moth in grams: ");
 	scanf("%f", &tempWeight);
 	weight = tempWeight / 1000;
 	printf("Please wait about 20 seconds\n");
+	*/
 	/*
 	** Add the closed-loop stuff here.
 	*/
 
 	// DAQmx analog voltage channel and timing parameters
+
+	/*
 	DAQmxErrChk(DAQmxCreateTask("", &taskHandle));
 
 	// IMPORTANT
@@ -901,6 +1254,7 @@ int main(int argc, char **argv) {
 	bias4 = biasing(currai4);
 	bias5 = biasing(currai5);
 	writeToFile();
+	*/
 
 	/*
 	** This is where the closed-loop stuff ends
@@ -913,8 +1267,16 @@ int main(int argc, char **argv) {
 	glutInitWindowSize(800, 454);
 
 	glutInitWindowPosition(100, 100);
+	glutIdleFunc(display);
 
 	glutCreateWindow("A basic OpenGL Window");
+	window1 = glutGetWindow();
+	glutCreateWindow("Second basic OpenGL Window");
+	window2 = glutGetWindow();
+	glutCreateWindow("Don't put me in a box");
+	window3 = glutGetWindow();
+
+	glutSetWindow(window1);
 
 	init();
 
@@ -932,13 +1294,65 @@ int main(int argc, char **argv) {
 
 	glutFullScreen(); //This makes shit fullscreen
 
-	glutDisplayFunc(display);
-
-	glutIdleFunc(display);
+	glutDisplayFunc(display1);
 
 	glutReshapeFunc(reshape);
 
 	glutKeyboardFunc(letter_pressed);
+
+
+	// Second window
+	glutSetWindow(window2);
+	init();
+
+
+
+	if (WGLExtensionSupported("WGL_EXT_swap_control"))
+	{
+		// Extension is supported, init pointers.
+		wglSwapIntervalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
+
+		// this is another function from WGL_EXT_swap_control extension
+		wglGetSwapIntervalEXT = (PFNWGLGETSWAPINTERVALEXTPROC)wglGetProcAddress("wglGetSwapIntervalEXT");
+		wglSwapIntervalEXT(-1);
+	}
+
+	//glutFullScreen(); //This makes shit fullscreen
+
+	glutDisplayFunc(display2);
+
+	//glutIdleFunc(display2);
+
+	glutReshapeFunc(reshape2);
+
+	//glutKeyboardFunc(letter_pressed);
+
+
+	// Third window
+	glutSetWindow(window3);
+	init();
+
+
+
+	if (WGLExtensionSupported("WGL_EXT_swap_control"))
+	{
+		// Extension is supported, init pointers.
+		wglSwapIntervalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
+
+		// this is another function from WGL_EXT_swap_control extension
+		wglGetSwapIntervalEXT = (PFNWGLGETSWAPINTERVALEXTPROC)wglGetProcAddress("wglGetSwapIntervalEXT");
+		wglSwapIntervalEXT(-1);
+	}
+
+	//glutFullScreen(); //This makes shit fullscreen
+
+	glutDisplayFunc(display2);
+
+	//glutIdleFunc(display2);
+
+	glutReshapeFunc(reshape2);
+
+	//glutKeyboardFunc(letter_pressed);
 
 	goto Skip;
 Error:
