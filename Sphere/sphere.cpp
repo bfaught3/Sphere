@@ -292,7 +292,7 @@ void DisplaySphere(double R, GLuint texture) {
 
 	if (horizontal) {
 		//glRotatef(90, 0, 1, 0);
-		switch ((int) R) {
+		switch ((int)R) {
 		case 2:
 			//glRotatef(90, 1, 0, 0);
 			break;
@@ -337,7 +337,7 @@ void DisplaySphere(double R, GLuint texture) {
 	//glBindTexture(GL_TEXTURE_2D, texture);
 
 
-	
+	/*
 	glBegin(GL_TRIANGLE_STRIP);
 
 	for (b = 0; b <= VertexCount; b++) {
@@ -363,8 +363,8 @@ void DisplaySphere(double R, GLuint texture) {
 	}
 
 	glEnd();
+	*/
 	
-	/*
 	glEnableClientState(GL_NORMAL_ARRAY);
 	glEnableClientState(GL_COLOR_ARRAY);
 	glEnableClientState(GL_VERTEX_ARRAY);
@@ -379,15 +379,15 @@ void DisplaySphere(double R, GLuint texture) {
 	//glTranslatef(-2, -2, 0);                // move to bottom-left
 
 	//glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_BYTE, indices);
-	glDrawArrays(GL_TRIANGLES, 0, 27 * VertexCount);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 27 * VertexCount);
 
 	glPopMatrix();
 
 	glDisableClientState(GL_VERTEX_ARRAY);  // disable vertex arrays
 	glDisableClientState(GL_COLOR_ARRAY);
 	glDisableClientState(GL_NORMAL_ARRAY);
-	*/
 	
+
 }
 void CreateSphere(double R, double H, double K, double Z) {
 
@@ -409,7 +409,7 @@ void CreateSphere(double R, double H, double K, double Z) {
 
 		for (a = 0; a <= 360 - space; a += space) {
 
-			if (fmod(b,2 * viewingAngle) < viewingAngle + yp && b <= single) {
+			if (fmod(b, 2 * viewingAngle) < viewingAngle + yp && b <= single) {
 
 				//VERTEX[n].X = R * sin((a) / 180 * PI) * sin((b) / 180 * PI) - H;
 				VERTEX[n].X = R * sin((a) / 180 * PI) * cos((b) / 180 * PI) - H;
@@ -593,7 +593,7 @@ void CreateSphere(double R, double H, double K, double Z) {
 		norm[3 * i + 2] = vert[3 * i + 2] / R;
 		col[3 * i] = 1;
 		col[3 * i + 1] = 1;
-		col[3 * i + 2] + 1;
+		col[3 * i + 2] = 1;
 		arr[9 * i] = vert[3 * i];
 		arr[9 * i + 1] = vert[3 * i + 1];
 		arr[9 * i + 2] = vert[3 * i + 2];
@@ -603,7 +603,7 @@ void CreateSphere(double R, double H, double K, double Z) {
 		arr[9 * i + 6] = col[3 * i + 0];
 		arr[9 * i + 7] = col[3 * i + 1];
 		arr[9 * i + 8] = col[3 * i + 2];
-		printf("\n%f,%f,%f,%f,%f,%f,%f,%f,%f", arr[9 * i], arr[9 * i + 1], arr[9 * i + 2], arr[9 * i + 3], arr[9*i+4], arr[9*i+5], arr[9*i+6], arr[9*i+7], arr[9*i+8]);
+		printf("\n%f,%f,%f,%f,%f,%f,%f,%f,%f", arr[9 * i], arr[9 * i + 1], arr[9 * i + 2], arr[9 * i + 3], arr[9 * i + 4], arr[9 * i + 5], arr[9 * i + 6], arr[9 * i + 7], arr[9 * i + 8]);
 	}
 }
 
@@ -628,68 +628,68 @@ void display(void) {
 	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, -1, -1.0, DAQmx_Val_GroupByChannel, currentData, 1400700, &read, NULL));
 	goto Skip;
 
-Error:
+	Error:
 	if (DAQmxFailed(error)) {
-		DAQmxGetExtendedErrorInfo(errBuff, 2048);
-		printf("\nDAQmx Error: %s\n", errBuff);
+	DAQmxGetExtendedErrorInfo(errBuff, 2048);
+	printf("\nDAQmx Error: %s\n", errBuff);
 	}
 
-Skip:
-	
+	Skip:
+
 	for (int i = 0; i < read; i++) {
-		if (queueit >= 200100) {
-			queueit = 0;
-		}
-		//printf("%f\n", currentData[i]);
-		float64 * tempData = matrixMult((currentData[i] - bias0), (currentData[i + read] - bias1), (currentData[i + (read * 2)] - bias2), (currentData[i + (read * 3)] - bias3), (currentData[i + (read * 4)] - bias4), (currentData[i + (read * 5)] - bias5));
-		currai0[queueit] = tempData[0];
-		//printf("%f", tempData[0]);
-		currai1[queueit] = tempData[1];
-		currai2[queueit] = tempData[2];
-		currai3[queueit] = tempData[3];
-		currai4[queueit] = tempData[4];
-		currai5[queueit] = tempData[5];
-		currai6[queueit] = (int64)currentData[i + (read * 6)];
-		//currxp[queueit] = tempxp;
-		currxp[queueit] = OLangle;
-		//currxpcl[queueit] = tempxp - aggrlx;
-		currxpcl[queueit] = OLangle + CLangle;
-		queueit++;
+	if (queueit >= 200100) {
+	queueit = 0;
+	}
+	//printf("%f\n", currentData[i]);
+	float64 * tempData = matrixMult((currentData[i] - bias0), (currentData[i + read] - bias1), (currentData[i + (read * 2)] - bias2), (currentData[i + (read * 3)] - bias3), (currentData[i + (read * 4)] - bias4), (currentData[i + (read * 5)] - bias5));
+	currai0[queueit] = tempData[0];
+	//printf("%f", tempData[0]);
+	currai1[queueit] = tempData[1];
+	currai2[queueit] = tempData[2];
+	currai3[queueit] = tempData[3];
+	currai4[queueit] = tempData[4];
+	currai5[queueit] = tempData[5];
+	currai6[queueit] = (int64)currentData[i + (read * 6)];
+	//currxp[queueit] = tempxp;
+	currxp[queueit] = OLangle;
+	//currxpcl[queueit] = tempxp - aggrlx;
+	currxpcl[queueit] = OLangle + CLangle;
+	queueit++;
 	}
 	*/
 	/*
 	if (closedLoop) {
-		float T = calcFeedback();
-		if (abs(T) < threshold) {
-			T = 0;
-		}
-		float angAcc = (float)(T / (2.43 / 10000000.0)) * (1.0 / 120.0) * (1.0 / 120.0);
-		CLangle += (float)((angAcc / 2) * (read * (1.0 / 10000.0) * 120.0) * (read * (1.0 / 10000.0) * 120.0) + angVel * (read * (1.0 / 10000.0) * 120.0)) * (180.0 / PI);
-		angVel += (float)angAcc * (read * (1.0 / 10000.0) * 120.0);
-		printf("\n%f", T);
+	float T = calcFeedback();
+	if (abs(T) < threshold) {
+	T = 0;
+	}
+	float angAcc = (float)(T / (2.43 / 10000000.0)) * (1.0 / 120.0) * (1.0 / 120.0);
+	CLangle += (float)((angAcc / 2) * (read * (1.0 / 10000.0) * 120.0) * (read * (1.0 / 10000.0) * 120.0) + angVel * (read * (1.0 / 10000.0) * 120.0)) * (180.0 / PI);
+	angVel += (float)angAcc * (read * (1.0 / 10000.0) * 120.0);
+	printf("\n%f", T);
 	}
 
 	//float OLangle = 0;
 	if (drifting) {
-		OLangle = driftVel * angle;
-		//glRotatef(driftVel * angle, horizontal, vertical, spinning);
+	OLangle = driftVel * angle;
+	//glRotatef(driftVel * angle, horizontal, vertical, spinning);
 	}
 	else {
-		OLangle = (180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0;
-		//glRotatef((180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0, horizontal, vertical, spinning);
+	OLangle = (180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0;
+	//glRotatef((180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0, horizontal, vertical, spinning);
 	}
 
 	if (closedLoop) {
-		glRotatef(OLangle + CLangle, horizontal, vertical, spinning);
-		//printf("\n%f", CLangle);
+	glRotatef(OLangle + CLangle, horizontal, vertical, spinning);
+	//printf("\n%f", CLangle);
 	}
 	else {
-		//glRotatef(OLangle, horizontal, vertical, spinning);
-		glRotatef(OLangle, vertical, horizontal, spinning);
+	//glRotatef(OLangle, horizontal, vertical, spinning);
+	glRotatef(OLangle, vertical, horizontal, spinning);
 	}
 
 	if (!clear) {
-		DisplaySphere(5, texture[0]);
+	DisplaySphere(5, texture[0]);
 	}
 	*/
 
@@ -719,7 +719,7 @@ void display1(void) {
 
 	//glTranslatef(0, 0, -10);
 	//glTranslatef(0, 0, -1000);
-	
+
 	if (closedLoop) {
 		float T = calcFeedback();
 		if (abs(T) < threshold) {
@@ -754,7 +754,7 @@ void display1(void) {
 	if (!clear) {
 		DisplaySphere(1, texture[0]);
 	}
-	
+
 
 	glutSwapBuffers();
 
@@ -922,41 +922,41 @@ void letter_pressed(unsigned char key, int x, int y) {
 
 		//Not implemented yet
 		/*
-	case 114: //r
-		
+		case 114: //r
+
 		printf("We are entering our switch case\n");
 		glPushMatrix();
 		glTranslatef(200, 300, 0);
 		glRotatef(90, 0, 0, 1);
 		glBegin(GL_QUADS);
 		{
-			glVertex2f(-num / 2, -num2 / 2);
-			glVertex2f(-num2 / 2, -num2 / 2);
-			glVertex2f(num2 / 2, num3 / 2);
-			glVertex2f(num / 2, num3 / 2);
+		glVertex2f(-num / 2, -num2 / 2);
+		glVertex2f(-num2 / 2, -num2 / 2);
+		glVertex2f(num2 / 2, num3 / 2);
+		glVertex2f(num / 2, num3 / 2);
 		}
 		glEnd();
 		glPopMatrix();
 		break;
 		*/
 		/*
-	case 45: //- will shrink bar
+		case 45: //- will shrink bar
 		if (barwidthIt > 0) {
-			barwidthIt--;
-			barwidth = barwidthArr[barwidthIt];
-			if (horizontal) {
-				//barwidth *= 1.763313609;
-			}
+		barwidthIt--;
+		barwidth = barwidthArr[barwidthIt];
+		if (horizontal) {
+		//barwidth *= 1.763313609;
+		}
 		}
 		glutPostRedisplay();
 		break;
-	case 61: //= will enlarge bar
+		case 61: //= will enlarge bar
 		if (barwidthIt < 2) {
-			barwidthIt++;
-			barwidth = barwidthArr[barwidthIt];
-			if (horizontal) {
-				//barwidth *= 1.763313609;
-			}
+		barwidthIt++;
+		barwidth = barwidthArr[barwidthIt];
+		if (horizontal) {
+		//barwidth *= 1.763313609;
+		}
 		}
 		glutPostRedisplay();
 		break;
@@ -1100,10 +1100,24 @@ void init(void) {
 
 	glEnable(GL_CULL_FACE);
 
-	//texture[0] = LoadTextureRAW(“earth.raw”);
+	//texture[0] = LoadTextureRAW(?earth.raw?);
 
 	//CreateSphere(70, 0, 0, 0);
 	CreateSphere(R, 0, 0, 0);
+
+	glEnableClientState(GL_NORMAL_ARRAY);
+	glEnableClientState(GL_COLOR_ARRAY);
+	glEnableClientState(GL_VERTEX_ARRAY);
+	//glEnable(GL_NORMAL_ARRAY);
+	//glEnable(GL_COLOR_ARRAY);
+	//glEnable(GL_VERTEX_ARRAY);
+	glNormalPointer(GL_FLOAT, 9 * sizeof(GLfloat), arr + 3);
+	glColorPointer(3, GL_FLOAT, 9 * sizeof(GLfloat), arr + 6);
+	glVertexPointer(3, GL_FLOAT, 9 * sizeof(GLfloat), arr);
+
+	glDisableClientState(GL_VERTEX_ARRAY);  // disable vertex arrays
+	glDisableClientState(GL_COLOR_ARRAY);
+	glDisableClientState(GL_NORMAL_ARRAY);
 
 }
 void reshape(int w, int h) {
@@ -1193,17 +1207,17 @@ int main(int argc, char **argv) {
 	printf("\ngot passed through analog");
 	printf("\n%f\n", data[1199999]);
 	for (int i = 0; i < read; i++) {
-		if (queueit >= 200100) {
-			queueit = 0;
-		}
-		currai0[queueit] = data[i];
-		currai1[queueit] = data[i + read];
-		currai2[queueit] = data[i + (read * 2)];
-		currai3[queueit] = data[i + (read * 3)];
-		currai4[queueit] = data[i + (read * 4)];
-		currai5[queueit] = data[i + (read * 5)];
-		currai6[queueit] = (int64)data[i + (read * 6)]; //our trigger buttom. Must be floored to 0 or 1.
-		queueit++;
+	if (queueit >= 200100) {
+	queueit = 0;
+	}
+	currai0[queueit] = data[i];
+	currai1[queueit] = data[i + read];
+	currai2[queueit] = data[i + (read * 2)];
+	currai3[queueit] = data[i + (read * 3)];
+	currai4[queueit] = data[i + (read * 4)];
+	currai5[queueit] = data[i + (read * 5)];
+	currai6[queueit] = (int64)data[i + (read * 6)]; //our trigger buttom. Must be floored to 0 or 1.
+	queueit++;
 	}
 	bias0 = biasing(currai0);
 	bias1 = biasing(currai1);
@@ -1238,7 +1252,7 @@ int main(int argc, char **argv) {
 
 	init();
 
-	
+
 
 	if (WGLExtensionSupported("WGL_EXT_swap_control"))
 	{
@@ -1264,7 +1278,7 @@ int main(int argc, char **argv) {
 	init();
 
 
-
+	/*
 	if (WGLExtensionSupported("WGL_EXT_swap_control"))
 	{
 		// Extension is supported, init pointers.
@@ -1274,6 +1288,7 @@ int main(int argc, char **argv) {
 		wglGetSwapIntervalEXT = (PFNWGLGETSWAPINTERVALEXTPROC)wglGetProcAddress("wglGetSwapIntervalEXT");
 		wglSwapIntervalEXT(-1);
 	}
+	*/
 
 	//glutFullScreen(); //This makes shit fullscreen
 
@@ -1291,7 +1306,7 @@ int main(int argc, char **argv) {
 	init();
 
 
-
+	/*
 	if (WGLExtensionSupported("WGL_EXT_swap_control"))
 	{
 		// Extension is supported, init pointers.
@@ -1301,6 +1316,7 @@ int main(int argc, char **argv) {
 		wglGetSwapIntervalEXT = (PFNWGLGETSWAPINTERVALEXTPROC)wglGetProcAddress("wglGetSwapIntervalEXT");
 		wglSwapIntervalEXT(-1);
 	}
+	*/
 
 	//glutFullScreen(); //This makes shit fullscreen
 
