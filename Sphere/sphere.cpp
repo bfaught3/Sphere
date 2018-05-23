@@ -11,6 +11,7 @@
 #define DAQmx_Val_GroupByChannel 0
 
 // OpenGL is pretty senstive so our header file glut.h has to be the first on our include files
+#include <GL/glew.h>
 #include <GL/glut.h> // MUST BE FIRST (not including MACROS. Those are fine first.)
 #include <GL/GL.h>
 #include <GL/GLU.h>
@@ -20,11 +21,26 @@
 #include <iostream>
 #include <GLFW/glfw3.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <NIDAQmx.h>
 #include <time.h>
 #include <windows.h>
 #include "wglext.h"
-//#include <string.h>
+
+
+// Include GLM
+#include <glm/glm.hpp>
+using namespace glm;
+
+#include <common/shader.hpp>
+#include <string.h>
+#include <vector>
+#include <fstream>
+#include <algorithm>
+#include <sstream>
+using namespace std;
+#include <stdlib.h>
+
 //#include <GL/glui.h>
 GLuint texture[1];
 
@@ -55,9 +71,11 @@ int window3;
 
 
 // for NIDAQ data handling
-int32       error = 0;
+//int32       error = 0;
+int       error = 0;
 TaskHandle  taskHandle = 0;
-int32       read;
+//int32       read;
+int       read;
 float64     data[1400700];
 float64		currentData[1400700];
 float64		currai0[200100];
@@ -69,7 +87,8 @@ float64		currai5[200100];
 int64		currai6[200100];
 float64		currxp[200100];
 float64		currxpcl[200100];	// closed loop
-int32		queueit = 0;
+//int32		queueit = 0;
+int		queueit = 0;
 float64		bias0, bias1, bias2, bias3, bias4, bias5;
 
 char        errBuff[2048] = { '\0' };
@@ -103,7 +122,22 @@ const int VertexCount = (360 / space) * (360 / space) * 4;
 
 VERTICES VERTEX[VertexCount];
 
+GLfloat vert[3 * VertexCount];
+GLfloat norm[3 * VertexCount];
+GLfloat col[3 * VertexCount];
+GLfloat arr[9 * VertexCount];
+
 GLuint LoadTextureRAW(const char * filename);
+
+GLuint VertexArrayID;
+GLuint vertexbuffer;
+GLuint programID;
+
+static const GLfloat g_vertex_buffer_data[] = {
+	-1.0f, -1.0f, 0.0f,
+	1.0f, -1.0f, 0.0f,
+	0.0f,  1.0f, 0.0f,
+};
 
 bool WGLExtensionSupported(const char *extension_name)
 {
@@ -134,6 +168,102 @@ bool WGLExtensionSupported(const char *extension_name)
 	return true;
 }
 
+/*
+GLuint LoadShaders(const char * vertex_file_path, const char * fragment_file_path) {
+
+	// Create the shaders
+	GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
+	GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
+
+	// Read the Vertex Shader code from the file
+	std::string VertexShaderCode;
+	std::ifstream VertexShaderStream(vertex_file_path, std::ios::in);
+	if (VertexShaderStream.is_open()) {
+		std::stringstream sstr;
+		sstr << VertexShaderStream.rdbuf();
+		VertexShaderCode = sstr.str();
+		VertexShaderStream.close();
+	}
+	else {
+		printf("Impossible to open %s. Are you in the right directory ? Don't forget to read the FAQ !\n", vertex_file_path);
+		getchar();
+		return 0;
+	}
+
+	// Read the Fragment Shader code from the file
+	std::string FragmentShaderCode;
+	std::ifstream FragmentShaderStream(fragment_file_path, std::ios::in);
+	if (FragmentShaderStream.is_open()) {
+		std::stringstream sstr;
+		sstr << FragmentShaderStream.rdbuf();
+		FragmentShaderCode = sstr.str();
+		FragmentShaderStream.close();
+	}
+
+	GLint Result = GL_FALSE;
+	int InfoLogLength;
+
+
+	// Compile Vertex Shader
+	printf("Compiling shader : %s\n", vertex_file_path);
+	char const * VertexSourcePointer = VertexShaderCode.c_str();
+	glShaderSource(VertexShaderID, 1, &VertexSourcePointer, NULL);
+	glCompileShader(VertexShaderID);
+
+	// Check Vertex Shader
+	glGetShaderiv(VertexShaderID, GL_COMPILE_STATUS, &Result);
+	glGetShaderiv(VertexShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
+	if (InfoLogLength > 0) {
+		std::vector<char> VertexShaderErrorMessage(InfoLogLength + 1);
+		glGetShaderInfoLog(VertexShaderID, InfoLogLength, NULL, &VertexShaderErrorMessage[0]);
+		printf("%s\n", &VertexShaderErrorMessage[0]);
+	}
+
+
+
+	// Compile Fragment Shader
+	printf("Compiling shader : %s\n", fragment_file_path);
+	char const * FragmentSourcePointer = FragmentShaderCode.c_str();
+	glShaderSource(FragmentShaderID, 1, &FragmentSourcePointer, NULL);
+	glCompileShader(FragmentShaderID);
+
+	// Check Fragment Shader
+	glGetShaderiv(FragmentShaderID, GL_COMPILE_STATUS, &Result);
+	glGetShaderiv(FragmentShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
+	if (InfoLogLength > 0) {
+		std::vector<char> FragmentShaderErrorMessage(InfoLogLength + 1);
+		glGetShaderInfoLog(FragmentShaderID, InfoLogLength, NULL, &FragmentShaderErrorMessage[0]);
+		printf("%s\n", &FragmentShaderErrorMessage[0]);
+	}
+
+
+
+	// Link the program
+	printf("Linking program\n");
+	GLuint ProgramID = glCreateProgram();
+	glAttachShader(ProgramID, VertexShaderID);
+	glAttachShader(ProgramID, FragmentShaderID);
+	glLinkProgram(ProgramID);
+
+	// Check the program
+	glGetProgramiv(ProgramID, GL_LINK_STATUS, &Result);
+	glGetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &InfoLogLength);
+	if (InfoLogLength > 0) {
+		std::vector<char> ProgramErrorMessage(InfoLogLength + 1);
+		glGetProgramInfoLog(ProgramID, InfoLogLength, NULL, &ProgramErrorMessage[0]);
+		printf("%s\n", &ProgramErrorMessage[0]);
+	}
+
+
+	glDetachShader(ProgramID, VertexShaderID);
+	glDetachShader(ProgramID, FragmentShaderID);
+
+	glDeleteShader(VertexShaderID);
+	glDeleteShader(FragmentShaderID);
+
+	return ProgramID;
+}
+*/
 
 /*
 * Tests to see if the file exists.
@@ -210,7 +340,8 @@ void writeToFile() {
 float64 calcFeedback() {
 	float64 avgai0 = 0;
 	for (int i = 0; i < read; i++) {
-		int32 j = queueit - read + i;
+		//int32 j = queueit - read + i;
+		int j = queueit - read + i;
 		if (spinning) {
 			if (j < 0) {
 				avgai0 += currai4[j + 200100];
@@ -245,7 +376,8 @@ float64 biasing(float64 *readArray) {
 	float64 avgai = 0;
 	int ignore = 0;
 	for (int i = ignore; i < read; i++) {
-		int32 j = queueit - read + i;
+		//int32 j = queueit - read + i;
+		int j = queueit - read + i;
 		if (j < 0) {
 			avgai += readArray[j + 200100];
 		}
@@ -289,37 +421,39 @@ void DisplaySphere(double R, GLuint texture) {
 		//glRotatef(90, 0, 1, 0);
 		switch ((int) R) {
 		case 2:
-			glRotatef(90, 1, 0, 0);
+			//glRotatef(90, 1, 0, 0);
 			break;
 		case 3:
-			glRotatef(-90, 1, 0, 0);
+			//glRotatef(-90, 1, 0, 0);
 			break;
 		default:
 			break;
 		}
-		glRotatef(90, 1, 0, 0);
+		//glRotatef(90, 1, 0, 0);
+		glRotatef(90, 0, 1, 0);
 	}
 	else if (vertical) {
 		//glRotatef(90, 1, 0, 0);
 		switch ((int)R) {
 		case 2:
-			glRotatef(90, 1, 0, 0);
+			//glRotatef(90, 1, 0, 0);
 			break;
 		case 3:
-			glRotatef(-90, 1, 0, 0);
+			//glRotatef(-90, 1, 0, 0);
 			break;
 		default:
 			break;
 		}
-		glRotatef(90, 0, 1, 0);
+		//glRotatef(90, 0, 1, 0);
+		glRotatef(90, 1, 0, 0);
 	}
 	else {
 		switch ((int)R) {
 		case 2:
-			glRotatef(90, 1, 0, 0);
+			//glRotatef(90, 1, 0, 0);
 			break;
 		case 3:
-			glRotatef(-90, 1, 0, 0);
+			//glRotatef(-90, 1, 0, 0);
 			break;
 		default:
 			break;
@@ -330,7 +464,7 @@ void DisplaySphere(double R, GLuint texture) {
 	//glBindTexture(GL_TEXTURE_2D, texture);
 
 
-
+	
 	glBegin(GL_TRIANGLE_STRIP);
 
 	for (b = 0; b <= VertexCount; b++) {
@@ -356,6 +490,58 @@ void DisplaySphere(double R, GLuint texture) {
 	}
 
 	glEnd();
+	
+	
+	/*
+	glEnableClientState(GL_NORMAL_ARRAY);
+	glEnableClientState(GL_COLOR_ARRAY);
+	glEnableClientState(GL_VERTEX_ARRAY);
+	//glEnable(GL_NORMAL_ARRAY);
+	//glEnable(GL_COLOR_ARRAY);
+	//glEnable(GL_VERTEX_ARRAY);
+	glNormalPointer(GL_FLOAT, 9 * sizeof(GLfloat), arr + 3);
+	glColorPointer(3, GL_FLOAT, 9 * sizeof(GLfloat), arr + 6);
+	glVertexPointer(3, GL_FLOAT, 9 * sizeof(GLfloat), arr);
+
+	glPushMatrix();
+	//glTranslatef(-2, -2, 0);                // move to bottom-left
+
+	//glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_BYTE, indices);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 1 * VertexCount);
+
+	glPopMatrix();
+
+	glDisableClientState(GL_VERTEX_ARRAY);  // disable vertex arrays
+	glDisableClientState(GL_COLOR_ARRAY);
+	glDisableClientState(GL_NORMAL_ARRAY);
+	*/
+
+	/*
+	// Clear the screen
+	//glClear(GL_COLOR_BUFFER_BIT);
+	// Use our shader
+	glUseProgram(programID);
+	// 1rst attribute buffer : vertices
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+	glVertexAttribPointer(
+		0,                  // attribute 0. No particular reason for 0, but must match the layout in the shader.
+		//VertexCount,                  // size
+		3,
+		GL_FLOAT,           // type
+		GL_FALSE,           // normalized?
+		0,                  // stride
+		(void*)0            // array buffer offset
+	);
+
+	// Draw the triangle !
+	glDrawArrays(GL_TRIANGLES, 0, VertexCount); // 3 indices starting at 0 -> 1 triangle
+
+	glDisableVertexAttribArray(0);
+
+	//glRotatef(angle, 1, 0, 0);
+	//glutSwapBuffers();
+	*/
 	
 }
 void CreateSphere(double R, double H, double K, double Z) {
@@ -550,6 +736,30 @@ void CreateSphere(double R, double H, double K, double Z) {
 		}
 
 	}
+
+	// Array of vertices
+	for (int i = 0; i < VertexCount; i++) {
+		vert[3 * i] = (GLfloat)VERTEX[i].X;
+		vert[3 * i + 1] = (GLfloat)VERTEX[i].Y;
+		vert[3 * i + 2] = (GLfloat)VERTEX[i].Z;
+		//printf("\n%f,%f,%f", vert[3 * i], vert[3 * i + 1], vert[3 * i + 2]);
+		norm[3 * i] = vert[3 * i] / R;
+		norm[3 * i + 1] = vert[3 * i + 1] / R;
+		norm[3 * i + 2] = vert[3 * i + 2] / R;
+		col[3 * i] = 1;
+		col[3 * i + 1] = 1;
+		col[3 * i + 2] = 1;
+		arr[9 * i] = vert[3 * i];
+		arr[9 * i + 1] = vert[3 * i + 1];
+		arr[9 * i + 2] = vert[3 * i + 2];
+		arr[9 * i + 3] = norm[3 * i + 0];
+		arr[9 * i + 4] = norm[3 * i + 1];
+		arr[9 * i + 5] = norm[3 * i + 2];
+		arr[9 * i + 6] = col[3 * i + 0];
+		arr[9 * i + 7] = col[3 * i + 1];
+		arr[9 * i + 8] = col[3 * i + 2];
+		printf("\n%f,%f,%f,%f,%f,%f,%f,%f,%f", arr[9 * i], arr[9 * i + 1], arr[9 * i + 2], arr[9 * i + 3], arr[9*i+4], arr[9*i+5], arr[9*i+6], arr[9*i+7], arr[9*i+8]);
+	}
 }
 
 void display(void) {
@@ -559,6 +769,8 @@ void display(void) {
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glColor3f(255, 255, 255); // color white for our rectangle is (255, 255, 255); color yellow is (255, 255, 0)
 
 	glLoadIdentity();
 
@@ -662,40 +874,6 @@ void display1(void) {
 
 	//glTranslatef(0, 0, -10);
 	//glTranslatef(0, 0, -1000);
-
-	/*
-	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, -1, -1.0, DAQmx_Val_GroupByChannel, currentData, 1400700, &read, NULL));
-	goto Skip;
-
-	Error:
-	if (DAQmxFailed(error)) {
-	DAQmxGetExtendedErrorInfo(errBuff, 2048);
-	printf("\nDAQmx Error: %s\n", errBuff);
-	}
-
-	Skip:
-
-	for (int i = 0; i < read; i++) {
-	if (queueit >= 200100) {
-	queueit = 0;
-	}
-	//printf("%f\n", currentData[i]);
-	float64 * tempData = matrixMult((currentData[i] - bias0), (currentData[i + read] - bias1), (currentData[i + (read * 2)] - bias2), (currentData[i + (read * 3)] - bias3), (currentData[i + (read * 4)] - bias4), (currentData[i + (read * 5)] - bias5));
-	currai0[queueit] = tempData[0];
-	//printf("%f", tempData[0]);
-	currai1[queueit] = tempData[1];
-	currai2[queueit] = tempData[2];
-	currai3[queueit] = tempData[3];
-	currai4[queueit] = tempData[4];
-	currai5[queueit] = tempData[5];
-	currai6[queueit] = (int64)currentData[i + (read * 6)];
-	//currxp[queueit] = tempxp;
-	currxp[queueit] = OLangle;
-	//currxpcl[queueit] = tempxp - aggrlx;
-	currxpcl[queueit] = OLangle + CLangle;
-	queueit++;
-	}
-	*/
 	
 	if (closedLoop) {
 		float T = calcFeedback();
@@ -723,8 +901,9 @@ void display1(void) {
 		//printf("\n%f", CLangle);
 	}
 	else {
-		//glRotatef(OLangle, horizontal, vertical, spinning);
-		glRotatef(OLangle, vertical, horizontal, spinning);
+		gluLookAt(0, 0, 0, 0, 0, 1, 1, 0, 0);
+		glRotatef(OLangle, horizontal, vertical, spinning);
+		//glRotatef(OLangle, vertical, horizontal, spinning);
 	}
 
 	if (!clear) {
@@ -734,7 +913,7 @@ void display1(void) {
 
 	glutSwapBuffers();
 
-	angle; //Not really the angle, more like the time step incrementing thing.
+	//angle; //Not really the angle, more like the time step incrementing thing.
 }
 
 void display2(void) {
@@ -752,40 +931,6 @@ void display2(void) {
 	//glTranslatef(0, 0, -10);
 	//glTranslatef(0, 0, -1000);
 
-	/*
-	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, -1, -1.0, DAQmx_Val_GroupByChannel, currentData, 1400700, &read, NULL));
-	goto Skip;
-
-	Error:
-	if (DAQmxFailed(error)) {
-	DAQmxGetExtendedErrorInfo(errBuff, 2048);
-	printf("\nDAQmx Error: %s\n", errBuff);
-	}
-
-	Skip:
-
-	for (int i = 0; i < read; i++) {
-	if (queueit >= 200100) {
-	queueit = 0;
-	}
-	//printf("%f\n", currentData[i]);
-	float64 * tempData = matrixMult((currentData[i] - bias0), (currentData[i + read] - bias1), (currentData[i + (read * 2)] - bias2), (currentData[i + (read * 3)] - bias3), (currentData[i + (read * 4)] - bias4), (currentData[i + (read * 5)] - bias5));
-	currai0[queueit] = tempData[0];
-	//printf("%f", tempData[0]);
-	currai1[queueit] = tempData[1];
-	currai2[queueit] = tempData[2];
-	currai3[queueit] = tempData[3];
-	currai4[queueit] = tempData[4];
-	currai5[queueit] = tempData[5];
-	currai6[queueit] = (int64)currentData[i + (read * 6)];
-	//currxp[queueit] = tempxp;
-	currxp[queueit] = OLangle;
-	//currxpcl[queueit] = tempxp - aggrlx;
-	currxpcl[queueit] = OLangle + CLangle;
-	queueit++;
-	}
-	*/
-
 	if (closedLoop) {
 		float T = calcFeedback();
 		if (abs(T) < threshold) {
@@ -812,8 +957,9 @@ void display2(void) {
 		//printf("\n%f", CLangle);
 	}
 	else {
-		//glRotatef(OLangle, horizontal, vertical, spinning);
-		glRotatef(OLangle, vertical, spinning, -horizontal);
+		gluLookAt(0, 0, 0, 1, 0, 0, 0, 0, -1);
+		glRotatef(OLangle, horizontal, vertical, spinning);
+		//glRotatef(OLangle, vertical, spinning, -horizontal);
 	}
 
 	if (!clear) {
@@ -843,40 +989,6 @@ void display3(void) {
 	//glTranslatef(0, 0, -10);
 	//glTranslatef(0, 0, -1000);
 
-	/*
-	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, -1, -1.0, DAQmx_Val_GroupByChannel, currentData, 1400700, &read, NULL));
-	goto Skip;
-
-	Error:
-	if (DAQmxFailed(error)) {
-	DAQmxGetExtendedErrorInfo(errBuff, 2048);
-	printf("\nDAQmx Error: %s\n", errBuff);
-	}
-
-	Skip:
-
-	for (int i = 0; i < read; i++) {
-	if (queueit >= 200100) {
-	queueit = 0;
-	}
-	//printf("%f\n", currentData[i]);
-	float64 * tempData = matrixMult((currentData[i] - bias0), (currentData[i + read] - bias1), (currentData[i + (read * 2)] - bias2), (currentData[i + (read * 3)] - bias3), (currentData[i + (read * 4)] - bias4), (currentData[i + (read * 5)] - bias5));
-	currai0[queueit] = tempData[0];
-	//printf("%f", tempData[0]);
-	currai1[queueit] = tempData[1];
-	currai2[queueit] = tempData[2];
-	currai3[queueit] = tempData[3];
-	currai4[queueit] = tempData[4];
-	currai5[queueit] = tempData[5];
-	currai6[queueit] = (int64)currentData[i + (read * 6)];
-	//currxp[queueit] = tempxp;
-	currxp[queueit] = OLangle;
-	//currxpcl[queueit] = tempxp - aggrlx;
-	currxpcl[queueit] = OLangle + CLangle;
-	queueit++;
-	}
-	*/
-
 	if (closedLoop) {
 		float T = calcFeedback();
 		if (abs(T) < threshold) {
@@ -903,8 +1015,9 @@ void display3(void) {
 		//printf("\n%f", CLangle);
 	}
 	else {
-		//glRotatef(OLangle, horizontal, vertical, spinning);
-		glRotatef(-OLangle, vertical, spinning, horizontal);
+		gluLookAt(0, 0, 0, -1, 0, 0, 0, 0, 1);
+		glRotatef(OLangle, horizontal, vertical, spinning);
+		//glRotatef(OLangle, vertical, spinning, horizontal);
 	}
 
 	if (!clear) {
@@ -1147,6 +1260,31 @@ void init(void) {
 	//CreateSphere(70, 0, 0, 0);
 	CreateSphere(R, 0, 0, 0);
 
+	/*
+	// Initialize GLEW
+	glewExperimental = true; // Needed for core profile
+	if (glewInit() != GLEW_OK) {
+		fprintf(stderr, "Failed to initialize GLEW\n");
+		getchar();
+		exit(1);
+		//glfwTerminate();
+		//return -1;
+	}
+
+	
+	glClearColor(0.0f, 0.0f, 0.9f, 0.0f);
+	//GLuint VertexArrayID1;
+	glGenVertexArrays(1, &VertexArrayID);
+	glBindVertexArray(VertexArrayID);
+
+	programID = LoadShaders("SimpleVertexShader.vertexshader", "SimpleFragmentShader.fragmentshader");
+
+	glGenBuffers(1, &vertexbuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+	//glBufferData(GL_ARRAY_BUFFER, sizeof(vert), vert, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+	*/
+
 }
 void reshape(int w, int h) {
 
@@ -1261,6 +1399,7 @@ int main(int argc, char **argv) {
 	*/
 
 	glutInit(&argc, argv);
+	glutInitContextVersion(3, 3);
 
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH);
 
@@ -1346,11 +1485,11 @@ int main(int argc, char **argv) {
 
 	//glutFullScreen(); //This makes shit fullscreen
 
-	glutDisplayFunc(display2);
+	glutDisplayFunc(display3);
 
 	//glutIdleFunc(display2);
 
-	glutReshapeFunc(reshape2);
+	glutReshapeFunc(reshape3);
 
 	//glutKeyboardFunc(letter_pressed);
 
