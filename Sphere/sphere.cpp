@@ -1278,7 +1278,7 @@ int main(int argc, char **argv) {
 	init();
 
 
-
+	/*
 	if (WGLExtensionSupported("WGL_EXT_swap_control"))
 	{
 		// Extension is supported, init pointers.
@@ -1288,6 +1288,7 @@ int main(int argc, char **argv) {
 		wglGetSwapIntervalEXT = (PFNWGLGETSWAPINTERVALEXTPROC)wglGetProcAddress("wglGetSwapIntervalEXT");
 		wglSwapIntervalEXT(-1);
 	}
+	*/
 
 	//glutFullScreen(); //This makes shit fullscreen
 
@@ -1305,7 +1306,7 @@ int main(int argc, char **argv) {
 	init();
 
 
-
+	/*
 	if (WGLExtensionSupported("WGL_EXT_swap_control"))
 	{
 		// Extension is supported, init pointers.
@@ -1315,6 +1316,7 @@ int main(int argc, char **argv) {
 		wglGetSwapIntervalEXT = (PFNWGLGETSWAPINTERVALEXTPROC)wglGetProcAddress("wglGetSwapIntervalEXT");
 		wglSwapIntervalEXT(-1);
 	}
+	*/
 
 	//glutFullScreen(); //This makes shit fullscreen
 
