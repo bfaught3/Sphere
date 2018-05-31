@@ -24,6 +24,7 @@
 #include <time.h>
 #include <windows.h>
 #include "wglext.h"
+#include <mutex>
 //#include <string.h>
 //#include <GL/glui.h>
 GLuint texture[1];
@@ -40,7 +41,7 @@ bool closedLoop = 0;
 bool horizontal = 0;
 bool spinning = 0;
 bool vertical = 1;
-const float R = 584.6207004;
+const float R = (9.0 / 16.0) * 584.6207004;
 int single = 360;
 //const float R = 70;
 float weight = 1;
@@ -49,9 +50,12 @@ float CLangle = 0;
 float angVel = 0;
 float OLangle = 0;
 const float threshold = 0.0025;
-int window1; //Main window
-int window2;
-int window3;
+GLint window1; //Main window
+GLint window2;
+GLint window3;
+float oscillationAmp = 360.0; // This is the amplitude of the oscillation in degrees.
+bool written = 0;
+//std::mutex mu;
 
 
 // for NIDAQ data handling
@@ -174,6 +178,7 @@ void writeToFile() {
 		exists = exists_test3(filename);
 	}
 
+	///*
 	fileP = fopen(filename, "w");
 	printf("\n%s", filename);
 
@@ -189,24 +194,81 @@ void writeToFile() {
 		increment++;
 		char gs[80];
 		char oc[80];
-		if (single) {
-			sprintf(gs, "Single Bar");
+		char dh[80]; //Degrees/s vs Hz
+		float dhv;
+		char rpy[80]; //Roll, pitch, or yaw
+		if (spinning) {
+		sprintf(rpy, "Roll");
+		}
+		else if (horizontal) {
+		sprintf(rpy, "Pitch");
 		}
 		else {
-			sprintf(gs, "Grating");
+		sprintf(rpy, "Yaw");
+		}
+		if (single) {
+		sprintf(gs, "Single Bar");
+		}
+		else {
+		sprintf(gs, "Grating");
 		}
 		if (closedLoop) {
-			sprintf(oc, "Closed");
+		sprintf(oc, "Closed");
 		}
 		else {
-			sprintf(oc, "Open");
+		sprintf(oc, "Open");
 		}
-		printf("\nFreq = %f Hz, %s, %s, %f deg", 120.0 / delay, gs, oc, viewingAngle);
+		if (drifting) {
+		sprintf(dh, "degrees per second");
+		dhv = driftVel * 120.0;
+		}
+		else {
+		sprintf(dh, "Hz");
+		dhv = 120.0 / delay;
+		}
+		printf("\n%s stimulus, Freq = %f %s, %s, %s, %f deg", rpy, dhv, dh, gs, oc, viewingAngle);
 	}
 	else {
 		printf("\nOur file cannot be written to");
 	}
-
+	//*/
+	/*
+	char gs[80];
+	char oc[80];
+	char dh[80]; //Degrees/s vs Hz
+	float dhv;
+	char rpy[80]; //Roll, pitch, or yaw
+	if (spinning) {
+		sprintf(rpy, "Roll");
+	}
+	else if (horizontal) {
+		sprintf(rpy, "Pitch");
+	}
+	else {
+		sprintf(rpy, "Yaw");
+	}
+	if (single) {
+		sprintf(gs, "Single Bar");
+	}
+	else {
+		sprintf(gs, "Grating");
+	}
+	if (closedLoop) {
+		sprintf(oc, "Closed");
+	}
+	else {
+		sprintf(oc, "Open");
+	}
+	if (drifting) {
+		sprintf(dh, "degrees per second");
+		dhv = driftVel * 120.0;
+	}
+	else {
+		sprintf(dh, "Hz");
+		dhv = 120.0 / delay;
+	}
+	printf("\n%s stimulus, Freq = %f %s, %s, %s, %f deg", rpy, dhv, dh, gs, oc, viewingAngle);
+	*/
 }
 
 /*
@@ -317,7 +379,7 @@ void DisplaySphere(double R, GLuint texture) {
 		default:
 			break;
 		}
-		//glRotatef(90, 0, 1, 0);
+		//glRotatef(90, 0, 1, 0);	
 		glRotatef(90, 1, 0, 0);
 	}
 	else {
@@ -603,7 +665,7 @@ void CreateSphere(double R, double H, double K, double Z) {
 		arr[9 * i + 6] = col[3 * i + 0];
 		arr[9 * i + 7] = col[3 * i + 1];
 		arr[9 * i + 8] = col[3 * i + 2];
-		printf("\n%f,%f,%f,%f,%f,%f,%f,%f,%f", arr[9 * i], arr[9 * i + 1], arr[9 * i + 2], arr[9 * i + 3], arr[9 * i + 4], arr[9 * i + 5], arr[9 * i + 6], arr[9 * i + 7], arr[9 * i + 8]);
+		//printf("\n%f,%f,%f,%f,%f,%f,%f,%f,%f", arr[9 * i], arr[9 * i + 1], arr[9 * i + 2], arr[9 * i + 3], arr[9 * i + 4], arr[9 * i + 5], arr[9 * i + 6], arr[9 * i + 7], arr[9 * i + 8]);
 	}
 }
 
@@ -619,12 +681,18 @@ void display(void) {
 
 	glLoadIdentity();
 
-
+	if (currai6[queueit - 1] == 0 && !written) {
+		writeToFile();
+		written = 1;
+	}
+	if (currai6[queueit - 1] != 0) {
+		written = 0;
+	}
 
 	//glTranslatef(0, 0, -10);
 	//glTranslatef(0, 0, -1000);
 
-	/*
+	///*
 	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, -1, -1.0, DAQmx_Val_GroupByChannel, currentData, 1400700, &read, NULL));
 	goto Skip;
 
@@ -650,13 +718,14 @@ void display(void) {
 	currai4[queueit] = tempData[4];
 	currai5[queueit] = tempData[5];
 	currai6[queueit] = (int64)currentData[i + (read * 6)];
+	//currai6[queueit] = (int64)currentData[i];
 	//currxp[queueit] = tempxp;
 	currxp[queueit] = OLangle;
 	//currxpcl[queueit] = tempxp - aggrlx;
 	currxpcl[queueit] = OLangle + CLangle;
 	queueit++;
 	}
-	*/
+	//*/
 	/*
 	if (closedLoop) {
 	float T = calcFeedback();
@@ -698,10 +767,13 @@ void display(void) {
 
 	angle++; //Not really the angle, more like the time step incrementing thing.
 	glutSetWindow(window1);
+	glutSwapBuffers();
 	glutPostRedisplay();
 	glutSetWindow(window2);
+	glutSwapBuffers();
 	glutPostRedisplay();
 	glutSetWindow(window3);
+	glutSwapBuffers();
 	glutPostRedisplay();
 }
 
@@ -737,7 +809,7 @@ void display1(void) {
 		//glRotatef(driftVel * angle, horizontal, vertical, spinning);
 	}
 	else {
-		OLangle = (180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0;
+		OLangle = (oscillationAmp / 2.0) * (-1) * cosf(((float)2 * angle * PI / delay)) + (oscillationAmp / 2.0);
 		//glRotatef((180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0, horizontal, vertical, spinning);
 	}
 
@@ -746,7 +818,7 @@ void display1(void) {
 		//printf("\n%f", CLangle);
 	}
 	else {
-		gluLookAt(0, 0, 0, 0, 0, 1, 1, 0, 0);
+		gluLookAt(0, 0, 0, 0, 0, -1, 0, (1 - 2 * vertical) * 1, 0);
 		glRotatef(OLangle, horizontal, vertical, spinning);
 		//glRotatef(OLangle, vertical, horizontal, spinning);
 	}
@@ -756,7 +828,7 @@ void display1(void) {
 	}
 
 
-	glutSwapBuffers();
+	//glutSwapBuffers();
 
 	angle; //Not really the angle, more like the time step incrementing thing.
 }
@@ -793,7 +865,7 @@ void display2(void) {
 		//glRotatef(driftVel * angle, horizontal, vertical, spinning);
 	}
 	else {
-		OLangle = (180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0;
+		OLangle = (oscillationAmp / 2.0) * (-1) * cosf(((float)2 * angle * PI / delay)) + (oscillationAmp / 2.0);
 		//glRotatef((180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0, horizontal, vertical, spinning);
 	}
 
@@ -802,7 +874,7 @@ void display2(void) {
 		//printf("\n%f", CLangle);
 	}
 	else {
-		gluLookAt(0, 0, 0, 1, 0, 0, 0, 0, -1);
+		gluLookAt(0, 0, 0, (1 - 2 * vertical) * 1, 0, 0, 0, (1 - 2 * vertical) * 1, 0);
 		glRotatef(OLangle, horizontal, vertical, spinning);
 		//glRotatef(OLangle, vertical, spinning, -horizontal);
 	}
@@ -814,7 +886,7 @@ void display2(void) {
 
 
 
-	glutSwapBuffers();
+	//glutSwapBuffers();
 
 	//angle++; //Not really the angle, more like the time step incrementing thing.
 }
@@ -851,7 +923,7 @@ void display3(void) {
 		//glRotatef(driftVel * angle, horizontal, vertical, spinning);
 	}
 	else {
-		OLangle = (180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0;
+		OLangle = (oscillationAmp / 2.0) * (-1) * cosf(((float)2 * angle * PI / delay)) + (oscillationAmp / 2.0);
 		//glRotatef((180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0, horizontal, vertical, spinning);
 	}
 
@@ -860,7 +932,7 @@ void display3(void) {
 		//printf("\n%f", CLangle);
 	}
 	else {
-		gluLookAt(0, 0, 0, -1, 0, 0, 0, 0, 1);
+		gluLookAt(0, 0, 0, (1 - 2 * vertical) * -1, 0, 0, 0, (1 - 2 * vertical) * 1, 0);
 		glRotatef(OLangle, horizontal, vertical, spinning);
 		//glRotatef(OLangle, vertical, spinning, horizontal);
 	}
@@ -872,7 +944,7 @@ void display3(void) {
 
 
 
-	glutSwapBuffers();
+	//glutSwapBuffers();
 
 	//angle++; //Not really the angle, more like the time step incrementing thing.
 }
@@ -887,6 +959,7 @@ void letter_pressed(unsigned char key, int x, int y) {
 	float degree;
 	float frequency;
 	float driftDeg; //drift in degrees/sec
+	float oscAmp; //oscillation amplitude in degrees
 	switch (key) {
 	case 98: //b
 		if (clear) {
@@ -1083,6 +1156,18 @@ void letter_pressed(unsigned char key, int x, int y) {
 		vertical = 0;
 		printf("\nSpinning.");
 		break;
+	case 65: //A will request oscillation amplitude in degrees
+		printf("\nInput oscillation amplitude in degrees: ");
+		scanf("%f", &oscAmp);
+		oscillationAmp = oscAmp;
+		glutPostRedisplay();
+		break;
+	case 97: //a will request oscillation amplitude in degrees
+		printf("\nInput oscillation amplitude in degrees: ");
+		scanf("%f", &oscAmp);
+		oscillationAmp = oscAmp;
+		glutPostRedisplay();
+		break;
 	}
 }
 
@@ -1128,8 +1213,8 @@ void reshape(int w, int h) {
 
 	glLoadIdentity();
 
-	//gluPerspective(60, (GLfloat)w / (GLfloat)h, 0.1, 100.0);
-	gluPerspective(90, (GLfloat)w / (GLfloat)h, 0.1, 1000.0);
+	//gluPerspective(60, (GLfloat)w / (GLfloat)h, 0.1, 1000.0);
+	gluPerspective(120, (GLfloat)w / (GLfloat)h, 0.1, 1000.0);
 
 
 	glMatrixMode(GL_MODELVIEW);
@@ -1143,8 +1228,8 @@ void reshape2(int w, int h) {
 
 	glLoadIdentity();
 
-	//gluPerspective(60, (GLfloat)w / (GLfloat)h, 0.1, 100.0);
-	gluPerspective(90, (GLfloat)w / (GLfloat)h, 0.1, 1000.0);
+	//gluPerspective(60, (GLfloat)w / (GLfloat)h, 0.1, 1000.0);
+	gluPerspective(120, (GLfloat)w / (GLfloat)h, 0.1, 1000.0);
 
 
 	glMatrixMode(GL_MODELVIEW);
@@ -1157,9 +1242,9 @@ void reshape3(int w, int h) {
 	glMatrixMode(GL_PROJECTION);
 
 	glLoadIdentity();
-
-	//gluPerspective(60, (GLfloat)w / (GLfloat)h, 0.1, 100.0);
-	gluPerspective(90, (GLfloat)w / (GLfloat)h, 0.1, 1000.0);
+	
+	//gluPerspective(60, (GLfloat)w / (GLfloat)h, 0.1, 1000.0);
+	gluPerspective(120, (GLfloat)w / (GLfloat)h, 0.1, 1000.0);
 
 
 	glMatrixMode(GL_MODELVIEW);
@@ -1182,13 +1267,15 @@ int main(int argc, char **argv) {
 	*/
 
 	// DAQmx analog voltage channel and timing parameters
+	printf("Please wait about 20 seconds\n");
 
-	/*
+	///*
 	DAQmxErrChk(DAQmxCreateTask("", &taskHandle));
 
 	// IMPORTANT
 	//changed Dev1 to Dev5 as the connection established. So verify what Dev is being used to update this code. DEV5 is our force torque.
 	DAQmxErrChk(DAQmxCreateAIVoltageChan(taskHandle, "Dev1/ai0:6", "", DAQmx_Val_Diff, -10.0, 10.0, DAQmx_Val_Volts, NULL));
+	//DAQmxErrChk(DAQmxCreateAIVoltageChan(taskHandle, "Dev1/ai6", "", DAQmx_Val_Diff, -10.0, 10.0, DAQmx_Val_Volts, NULL));
 	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle, "", 10000.0, DAQmx_Val_Rising, DAQmx_Val_ContSamps, 200100));
 	// DAQmx Start Code
 	DAQmxErrChk(DAQmxStartTask(taskHandle));
@@ -1217,6 +1304,7 @@ int main(int argc, char **argv) {
 	currai4[queueit] = data[i + (read * 4)];
 	currai5[queueit] = data[i + (read * 5)];
 	currai6[queueit] = (int64)data[i + (read * 6)]; //our trigger buttom. Must be floored to 0 or 1.
+	//currai6[queueit] = (int64)data[i]; //our trigger buttom. Must be floored to 0 or 1.
 	queueit++;
 	}
 	bias0 = biasing(currai0);
@@ -1226,7 +1314,7 @@ int main(int argc, char **argv) {
 	bias4 = biasing(currai4);
 	bias5 = biasing(currai5);
 	writeToFile();
-	*/
+	//*/
 
 	/*
 	** This is where the closed-loop stuff ends
@@ -1236,19 +1324,16 @@ int main(int argc, char **argv) {
 
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH);
 
-	glutInitWindowSize(800, 454);
+	//glutInitWindowSize(800, 450);
+	glutInitWindowSize(450, 800);
 
-	glutInitWindowPosition(100, 100);
+	glutInitWindowPosition(2400, 100);
 	glutIdleFunc(display);
 
-	glutCreateWindow("A basic OpenGL Window");
-	window1 = glutGetWindow();
-	glutCreateWindow("Second basic OpenGL Window");
-	window2 = glutGetWindow();
-	glutCreateWindow("Don't put me in a box");
-	window3 = glutGetWindow();
-
-	glutSetWindow(window1);
+	window1 = glutCreateWindow("A basic OpenGL Window");
+	//window1 = glutGetWindow();
+	
+	//glutSetWindow(window1);
 
 	init();
 
@@ -1274,7 +1359,13 @@ int main(int argc, char **argv) {
 
 
 	// Second window
-	glutSetWindow(window2);
+	glutInitWindowSize(450, 800);
+
+	glutInitWindowPosition(5600, 100);
+	window2 = glutCreateWindow("Second basic OpenGL Window");
+	//window2 = glutGetWindow();
+	//glutSetWindow(window2);
+	//glutInitWindowPosition(4000, 100);
 	init();
 
 
@@ -1290,7 +1381,7 @@ int main(int argc, char **argv) {
 	}
 	*/
 
-	//glutFullScreen(); //This makes shit fullscreen
+	glutFullScreen(); //This makes shit fullscreen
 
 	glutDisplayFunc(display2);
 
@@ -1302,7 +1393,13 @@ int main(int argc, char **argv) {
 
 
 	// Third window
+	glutInitWindowSize(450, 800);
+
+	glutInitWindowPosition(4000, 100);
+	window3 = glutCreateWindow("Don't put me in a box");
+	//window3 = glutGetWindow();
 	glutSetWindow(window3);
+	//glutInitWindowPosition(5600, 100);
 	init();
 
 
@@ -1318,7 +1415,7 @@ int main(int argc, char **argv) {
 	}
 	*/
 
-	//glutFullScreen(); //This makes shit fullscreen
+	glutFullScreen(); //This makes shit fullscreen
 
 	glutDisplayFunc(display3);
 
