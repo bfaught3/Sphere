@@ -11,7 +11,6 @@
 #define DAQmx_Val_GroupByChannel 0
 
 // OpenGL is pretty senstive so our header file glut.h has to be the first on our include files
-#include <GL/glew.h>
 #include <GL/glut.h> // MUST BE FIRST (not including MACROS. Those are fine first.)
 #include <GL/GL.h>
 #include <GL/GLU.h>
@@ -21,26 +20,13 @@
 #include <iostream>
 #include <GLFW/glfw3.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <NIDAQmx.h>
 #include <time.h>
 #include <windows.h>
 #include "wglext.h"
-
-
-// Include GLM
-#include <glm/glm.hpp>
-using namespace glm;
-
-#include <common/shader.hpp>
-#include <string.h>
-#include <vector>
-#include <fstream>
-#include <algorithm>
-#include <sstream>
-using namespace std;
-#include <stdlib.h>
-
+#include <thread>
+//#include <mutex>
+//#include <string.h>
 //#include <GL/glui.h>
 GLuint texture[1];
 
@@ -56,7 +42,7 @@ bool closedLoop = 0;
 bool horizontal = 0;
 bool spinning = 0;
 bool vertical = 1;
-const float R = 584.6207004;
+const float R = (9.0 / 16.0) * 584.6207004;
 int single = 360;
 //const float R = 70;
 float weight = 1;
@@ -65,17 +51,18 @@ float CLangle = 0;
 float angVel = 0;
 float OLangle = 0;
 const float threshold = 0.0025;
-int window1; //Main window
-int window2;
-int window3;
+GLint window1; //Main window
+GLint window2;
+GLint window3;
+float oscillationAmp = 360.0; // This is the amplitude of the oscillation in degrees.
+bool written = 0;
+//std::mutex mu;
 
 
 // for NIDAQ data handling
-//int32       error = 0;
-int       error = 0;
+int32       error = 0;
 TaskHandle  taskHandle = 0;
-//int32       read;
-int       read;
+int32       read;
 float64     data[1400700];
 float64		currentData[1400700];
 float64		currai0[200100];
@@ -87,8 +74,7 @@ float64		currai5[200100];
 int64		currai6[200100];
 float64		currxp[200100];
 float64		currxpcl[200100];	// closed loop
-//int32		queueit = 0;
-int		queueit = 0;
+int32		queueit = 0;
 float64		bias0, bias1, bias2, bias3, bias4, bias5;
 
 char        errBuff[2048] = { '\0' };
@@ -127,17 +113,10 @@ GLfloat norm[3 * VertexCount];
 GLfloat col[3 * VertexCount];
 GLfloat arr[9 * VertexCount];
 
+PFNWGLSWAPINTERVALEXTPROC       wglSwapIntervalEXT = NULL;
+PFNWGLGETSWAPINTERVALEXTPROC    wglGetSwapIntervalEXT = NULL;
+
 GLuint LoadTextureRAW(const char * filename);
-
-GLuint VertexArrayID;
-GLuint vertexbuffer;
-GLuint programID;
-
-static const GLfloat g_vertex_buffer_data[] = {
-	-1.0f, -1.0f, 0.0f,
-	1.0f, -1.0f, 0.0f,
-	0.0f,  1.0f, 0.0f,
-};
 
 bool WGLExtensionSupported(const char *extension_name)
 {
@@ -168,102 +147,6 @@ bool WGLExtensionSupported(const char *extension_name)
 	return true;
 }
 
-/*
-GLuint LoadShaders(const char * vertex_file_path, const char * fragment_file_path) {
-
-	// Create the shaders
-	GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
-	GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
-
-	// Read the Vertex Shader code from the file
-	std::string VertexShaderCode;
-	std::ifstream VertexShaderStream(vertex_file_path, std::ios::in);
-	if (VertexShaderStream.is_open()) {
-		std::stringstream sstr;
-		sstr << VertexShaderStream.rdbuf();
-		VertexShaderCode = sstr.str();
-		VertexShaderStream.close();
-	}
-	else {
-		printf("Impossible to open %s. Are you in the right directory ? Don't forget to read the FAQ !\n", vertex_file_path);
-		getchar();
-		return 0;
-	}
-
-	// Read the Fragment Shader code from the file
-	std::string FragmentShaderCode;
-	std::ifstream FragmentShaderStream(fragment_file_path, std::ios::in);
-	if (FragmentShaderStream.is_open()) {
-		std::stringstream sstr;
-		sstr << FragmentShaderStream.rdbuf();
-		FragmentShaderCode = sstr.str();
-		FragmentShaderStream.close();
-	}
-
-	GLint Result = GL_FALSE;
-	int InfoLogLength;
-
-
-	// Compile Vertex Shader
-	printf("Compiling shader : %s\n", vertex_file_path);
-	char const * VertexSourcePointer = VertexShaderCode.c_str();
-	glShaderSource(VertexShaderID, 1, &VertexSourcePointer, NULL);
-	glCompileShader(VertexShaderID);
-
-	// Check Vertex Shader
-	glGetShaderiv(VertexShaderID, GL_COMPILE_STATUS, &Result);
-	glGetShaderiv(VertexShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-	if (InfoLogLength > 0) {
-		std::vector<char> VertexShaderErrorMessage(InfoLogLength + 1);
-		glGetShaderInfoLog(VertexShaderID, InfoLogLength, NULL, &VertexShaderErrorMessage[0]);
-		printf("%s\n", &VertexShaderErrorMessage[0]);
-	}
-
-
-
-	// Compile Fragment Shader
-	printf("Compiling shader : %s\n", fragment_file_path);
-	char const * FragmentSourcePointer = FragmentShaderCode.c_str();
-	glShaderSource(FragmentShaderID, 1, &FragmentSourcePointer, NULL);
-	glCompileShader(FragmentShaderID);
-
-	// Check Fragment Shader
-	glGetShaderiv(FragmentShaderID, GL_COMPILE_STATUS, &Result);
-	glGetShaderiv(FragmentShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-	if (InfoLogLength > 0) {
-		std::vector<char> FragmentShaderErrorMessage(InfoLogLength + 1);
-		glGetShaderInfoLog(FragmentShaderID, InfoLogLength, NULL, &FragmentShaderErrorMessage[0]);
-		printf("%s\n", &FragmentShaderErrorMessage[0]);
-	}
-
-
-
-	// Link the program
-	printf("Linking program\n");
-	GLuint ProgramID = glCreateProgram();
-	glAttachShader(ProgramID, VertexShaderID);
-	glAttachShader(ProgramID, FragmentShaderID);
-	glLinkProgram(ProgramID);
-
-	// Check the program
-	glGetProgramiv(ProgramID, GL_LINK_STATUS, &Result);
-	glGetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-	if (InfoLogLength > 0) {
-		std::vector<char> ProgramErrorMessage(InfoLogLength + 1);
-		glGetProgramInfoLog(ProgramID, InfoLogLength, NULL, &ProgramErrorMessage[0]);
-		printf("%s\n", &ProgramErrorMessage[0]);
-	}
-
-
-	glDetachShader(ProgramID, VertexShaderID);
-	glDetachShader(ProgramID, FragmentShaderID);
-
-	glDeleteShader(VertexShaderID);
-	glDeleteShader(FragmentShaderID);
-
-	return ProgramID;
-}
-*/
 
 /*
 * Tests to see if the file exists.
@@ -299,6 +182,7 @@ void writeToFile() {
 		exists = exists_test3(filename);
 	}
 
+	///*
 	fileP = fopen(filename, "w");
 	printf("\n%s", filename);
 
@@ -314,24 +198,83 @@ void writeToFile() {
 		increment++;
 		char gs[80];
 		char oc[80];
-		if (single) {
-			sprintf(gs, "Single Bar");
+		char dh[80]; //Degrees/s vs Hz
+		float dhv;
+		char rpy[80]; //Roll, pitch, or yaw
+		if (spinning) {
+		sprintf(rpy, "Roll");
+		}
+		else if (horizontal) {
+		sprintf(rpy, "Pitch");
 		}
 		else {
-			sprintf(gs, "Grating");
+		sprintf(rpy, "Yaw");
+		}
+		if (single) {
+		sprintf(gs, "Single Bar");
+		}
+		else {
+		sprintf(gs, "Grating");
 		}
 		if (closedLoop) {
-			sprintf(oc, "Closed");
+		sprintf(oc, "Closed");
 		}
 		else {
-			sprintf(oc, "Open");
+		sprintf(oc, "Open");
 		}
-		printf("\nFreq = %f Hz, %s, %s, %f deg", 120.0 / delay, gs, oc, viewingAngle);
+		if (drifting) {
+		sprintf(dh, "degrees per second");
+		dhv = driftVel * 120.0;
+		//dhv = driftVel * 60.0;
+		}
+		else {
+		sprintf(dh, "Hz");
+		dhv = 120.0 / delay;
+		//dhv = 60.0 / delay;
+		}
+		printf("\n%s stimulus, Freq = %f %s, %s, %s, %f deg", rpy, dhv, dh, gs, oc, viewingAngle);
 	}
 	else {
 		printf("\nOur file cannot be written to");
 	}
-
+	//*/
+	/*
+	char gs[80];
+	char oc[80];
+	char dh[80]; //Degrees/s vs Hz
+	float dhv;
+	char rpy[80]; //Roll, pitch, or yaw
+	if (spinning) {
+		sprintf(rpy, "Roll");
+	}
+	else if (horizontal) {
+		sprintf(rpy, "Pitch");
+	}
+	else {
+		sprintf(rpy, "Yaw");
+	}
+	if (single) {
+		sprintf(gs, "Single Bar");
+	}
+	else {
+		sprintf(gs, "Grating");
+	}
+	if (closedLoop) {
+		sprintf(oc, "Closed");
+	}
+	else {
+		sprintf(oc, "Open");
+	}
+	if (drifting) {
+		sprintf(dh, "degrees per second");
+		dhv = driftVel * 120.0;
+	}
+	else {
+		sprintf(dh, "Hz");
+		dhv = 120.0 / delay;
+	}
+	printf("\n%s stimulus, Freq = %f %s, %s, %s, %f deg", rpy, dhv, dh, gs, oc, viewingAngle);
+	*/
 }
 
 /*
@@ -340,8 +283,7 @@ void writeToFile() {
 float64 calcFeedback() {
 	float64 avgai0 = 0;
 	for (int i = 0; i < read; i++) {
-		//int32 j = queueit - read + i;
-		int j = queueit - read + i;
+		int32 j = queueit - read + i;
 		if (spinning) {
 			if (j < 0) {
 				avgai0 += currai4[j + 200100];
@@ -376,8 +318,7 @@ float64 biasing(float64 *readArray) {
 	float64 avgai = 0;
 	int ignore = 0;
 	for (int i = ignore; i < read; i++) {
-		//int32 j = queueit - read + i;
-		int j = queueit - read + i;
+		int32 j = queueit - read + i;
 		if (j < 0) {
 			avgai += readArray[j + 200100];
 		}
@@ -419,7 +360,7 @@ void DisplaySphere(double R, GLuint texture) {
 
 	if (horizontal) {
 		//glRotatef(90, 0, 1, 0);
-		switch ((int) R) {
+		switch ((int)R) {
 		case 2:
 			//glRotatef(90, 1, 0, 0);
 			break;
@@ -444,7 +385,7 @@ void DisplaySphere(double R, GLuint texture) {
 		default:
 			break;
 		}
-		//glRotatef(90, 0, 1, 0);
+		//glRotatef(90, 0, 1, 0);	
 		glRotatef(90, 1, 0, 0);
 	}
 	else {
@@ -464,7 +405,7 @@ void DisplaySphere(double R, GLuint texture) {
 	//glBindTexture(GL_TEXTURE_2D, texture);
 
 
-	
+	/*
 	glBegin(GL_TRIANGLE_STRIP);
 
 	for (b = 0; b <= VertexCount; b++) {
@@ -490,9 +431,8 @@ void DisplaySphere(double R, GLuint texture) {
 	}
 
 	glEnd();
+	*/
 	
-	
-	/*
 	glEnableClientState(GL_NORMAL_ARRAY);
 	glEnableClientState(GL_COLOR_ARRAY);
 	glEnableClientState(GL_VERTEX_ARRAY);
@@ -507,42 +447,15 @@ void DisplaySphere(double R, GLuint texture) {
 	//glTranslatef(-2, -2, 0);                // move to bottom-left
 
 	//glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_BYTE, indices);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 1 * VertexCount);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 27 * VertexCount);
 
 	glPopMatrix();
 
 	glDisableClientState(GL_VERTEX_ARRAY);  // disable vertex arrays
 	glDisableClientState(GL_COLOR_ARRAY);
 	glDisableClientState(GL_NORMAL_ARRAY);
-	*/
-
-	/*
-	// Clear the screen
-	//glClear(GL_COLOR_BUFFER_BIT);
-	// Use our shader
-	glUseProgram(programID);
-	// 1rst attribute buffer : vertices
-	glEnableVertexAttribArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-	glVertexAttribPointer(
-		0,                  // attribute 0. No particular reason for 0, but must match the layout in the shader.
-		//VertexCount,                  // size
-		3,
-		GL_FLOAT,           // type
-		GL_FALSE,           // normalized?
-		0,                  // stride
-		(void*)0            // array buffer offset
-	);
-
-	// Draw the triangle !
-	glDrawArrays(GL_TRIANGLES, 0, VertexCount); // 3 indices starting at 0 -> 1 triangle
-
-	glDisableVertexAttribArray(0);
-
-	//glRotatef(angle, 1, 0, 0);
-	//glutSwapBuffers();
-	*/
 	
+
 }
 void CreateSphere(double R, double H, double K, double Z) {
 
@@ -564,7 +477,7 @@ void CreateSphere(double R, double H, double K, double Z) {
 
 		for (a = 0; a <= 360 - space; a += space) {
 
-			if (fmod(b,2 * viewingAngle) < viewingAngle + yp && b <= single) {
+			if (fmod(b, 2 * viewingAngle) < viewingAngle + yp && b <= single) {
 
 				//VERTEX[n].X = R * sin((a) / 180 * PI) * sin((b) / 180 * PI) - H;
 				VERTEX[n].X = R * sin((a) / 180 * PI) * cos((b) / 180 * PI) - H;
@@ -758,106 +671,8 @@ void CreateSphere(double R, double H, double K, double Z) {
 		arr[9 * i + 6] = col[3 * i + 0];
 		arr[9 * i + 7] = col[3 * i + 1];
 		arr[9 * i + 8] = col[3 * i + 2];
-		printf("\n%f,%f,%f,%f,%f,%f,%f,%f,%f", arr[9 * i], arr[9 * i + 1], arr[9 * i + 2], arr[9 * i + 3], arr[9*i+4], arr[9*i+5], arr[9*i+6], arr[9*i+7], arr[9*i+8]);
+		//printf("\n%f,%f,%f,%f,%f,%f,%f,%f,%f", arr[9 * i], arr[9 * i + 1], arr[9 * i + 2], arr[9 * i + 3], arr[9 * i + 4], arr[9 * i + 5], arr[9 * i + 6], arr[9 * i + 7], arr[9 * i + 8]);
 	}
-}
-
-void display(void) {
-
-	glClearDepth(1);
-
-	glClearColor(0.0, 0.0, 0.0, 1.0);
-
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	glColor3f(255, 255, 255); // color white for our rectangle is (255, 255, 255); color yellow is (255, 255, 0)
-
-	glLoadIdentity();
-
-
-
-	//glTranslatef(0, 0, -10);
-	//glTranslatef(0, 0, -1000);
-
-	/*
-	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, -1, -1.0, DAQmx_Val_GroupByChannel, currentData, 1400700, &read, NULL));
-	goto Skip;
-
-Error:
-	if (DAQmxFailed(error)) {
-		DAQmxGetExtendedErrorInfo(errBuff, 2048);
-		printf("\nDAQmx Error: %s\n", errBuff);
-	}
-
-Skip:
-	
-	for (int i = 0; i < read; i++) {
-		if (queueit >= 200100) {
-			queueit = 0;
-		}
-		//printf("%f\n", currentData[i]);
-		float64 * tempData = matrixMult((currentData[i] - bias0), (currentData[i + read] - bias1), (currentData[i + (read * 2)] - bias2), (currentData[i + (read * 3)] - bias3), (currentData[i + (read * 4)] - bias4), (currentData[i + (read * 5)] - bias5));
-		currai0[queueit] = tempData[0];
-		//printf("%f", tempData[0]);
-		currai1[queueit] = tempData[1];
-		currai2[queueit] = tempData[2];
-		currai3[queueit] = tempData[3];
-		currai4[queueit] = tempData[4];
-		currai5[queueit] = tempData[5];
-		currai6[queueit] = (int64)currentData[i + (read * 6)];
-		//currxp[queueit] = tempxp;
-		currxp[queueit] = OLangle;
-		//currxpcl[queueit] = tempxp - aggrlx;
-		currxpcl[queueit] = OLangle + CLangle;
-		queueit++;
-	}
-	*/
-	/*
-	if (closedLoop) {
-		float T = calcFeedback();
-		if (abs(T) < threshold) {
-			T = 0;
-		}
-		float angAcc = (float)(T / (2.43 / 10000000.0)) * (1.0 / 120.0) * (1.0 / 120.0);
-		CLangle += (float)((angAcc / 2) * (read * (1.0 / 10000.0) * 120.0) * (read * (1.0 / 10000.0) * 120.0) + angVel * (read * (1.0 / 10000.0) * 120.0)) * (180.0 / PI);
-		angVel += (float)angAcc * (read * (1.0 / 10000.0) * 120.0);
-		printf("\n%f", T);
-	}
-
-	//float OLangle = 0;
-	if (drifting) {
-		OLangle = driftVel * angle;
-		//glRotatef(driftVel * angle, horizontal, vertical, spinning);
-	}
-	else {
-		OLangle = (180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0;
-		//glRotatef((180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0, horizontal, vertical, spinning);
-	}
-
-	if (closedLoop) {
-		glRotatef(OLangle + CLangle, horizontal, vertical, spinning);
-		//printf("\n%f", CLangle);
-	}
-	else {
-		//glRotatef(OLangle, horizontal, vertical, spinning);
-		glRotatef(OLangle, vertical, horizontal, spinning);
-	}
-
-	if (!clear) {
-		DisplaySphere(5, texture[0]);
-	}
-	*/
-
-
-	//glutSwapBuffers();
-
-	angle++; //Not really the angle, more like the time step incrementing thing.
-	glutSetWindow(window1);
-	glutPostRedisplay();
-	glutSetWindow(window2);
-	glutPostRedisplay();
-	glutSetWindow(window3);
-	glutPostRedisplay();
 }
 
 void display1(void) {
@@ -874,7 +689,7 @@ void display1(void) {
 
 	//glTranslatef(0, 0, -10);
 	//glTranslatef(0, 0, -1000);
-	
+
 	if (closedLoop) {
 		float T = calcFeedback();
 		if (abs(T) < threshold) {
@@ -892,7 +707,7 @@ void display1(void) {
 		//glRotatef(driftVel * angle, horizontal, vertical, spinning);
 	}
 	else {
-		OLangle = (180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0;
+		OLangle = (oscillationAmp / 2.0) * (-1) * cosf(((float)2 * angle * PI / delay)) + (oscillationAmp / 2.0);
 		//glRotatef((180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0, horizontal, vertical, spinning);
 	}
 
@@ -901,7 +716,7 @@ void display1(void) {
 		//printf("\n%f", CLangle);
 	}
 	else {
-		gluLookAt(0, 0, 0, 0, 0, 1, 1, 0, 0);
+		gluLookAt(0, 0, 0, 0, 0, -1, 0, (1 - 2 * vertical) * 1, 0);
 		glRotatef(OLangle, horizontal, vertical, spinning);
 		//glRotatef(OLangle, vertical, horizontal, spinning);
 	}
@@ -909,11 +724,12 @@ void display1(void) {
 	if (!clear) {
 		DisplaySphere(1, texture[0]);
 	}
-	
+
 
 	glutSwapBuffers();
+	//wglSwapIntervalEXT(-1);
 
-	//angle; //Not really the angle, more like the time step incrementing thing.
+	angle; //Not really the angle, more like the time step incrementing thing.
 }
 
 void display2(void) {
@@ -948,7 +764,7 @@ void display2(void) {
 		//glRotatef(driftVel * angle, horizontal, vertical, spinning);
 	}
 	else {
-		OLangle = (180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0;
+		OLangle = (oscillationAmp / 2.0) * (-1) * cosf(((float)2 * angle * PI / delay)) + (oscillationAmp / 2.0);
 		//glRotatef((180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0, horizontal, vertical, spinning);
 	}
 
@@ -957,7 +773,7 @@ void display2(void) {
 		//printf("\n%f", CLangle);
 	}
 	else {
-		gluLookAt(0, 0, 0, 1, 0, 0, 0, 0, -1);
+		gluLookAt(0, 0, 0, (1 - 2 * vertical) * 1, 0, 0, 0, (1 - 2 * vertical) * 1, 0);
 		glRotatef(OLangle, horizontal, vertical, spinning);
 		//glRotatef(OLangle, vertical, spinning, -horizontal);
 	}
@@ -970,6 +786,7 @@ void display2(void) {
 
 
 	glutSwapBuffers();
+	//wglSwapIntervalEXT(-1);
 
 	//angle++; //Not really the angle, more like the time step incrementing thing.
 }
@@ -1006,7 +823,7 @@ void display3(void) {
 		//glRotatef(driftVel * angle, horizontal, vertical, spinning);
 	}
 	else {
-		OLangle = (180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0;
+		OLangle = (oscillationAmp / 2.0) * (-1) * cosf(((float)2 * angle * PI / delay)) + (oscillationAmp / 2.0);
 		//glRotatef((180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0, horizontal, vertical, spinning);
 	}
 
@@ -1015,7 +832,7 @@ void display3(void) {
 		//printf("\n%f", CLangle);
 	}
 	else {
-		gluLookAt(0, 0, 0, -1, 0, 0, 0, 0, 1);
+		gluLookAt(0, 0, 0, (1 - 2 * vertical) * -1, 0, 0, 0, (1 - 2 * vertical) * 1, 0);
 		glRotatef(OLangle, horizontal, vertical, spinning);
 		//glRotatef(OLangle, vertical, spinning, horizontal);
 	}
@@ -1028,9 +845,154 @@ void display3(void) {
 
 
 	glutSwapBuffers();
+	//wglSwapIntervalEXT(-1);
 
 	//angle++; //Not really the angle, more like the time step incrementing thing.
 }
+
+void display(void) {
+
+	glClearDepth(1);
+
+	glClearColor(0.0, 0.0, 0.0, 1.0);
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glColor3f(255, 255, 255); // color white for our rectangle is (255, 255, 255); color yellow is (255, 255, 0)
+
+	glLoadIdentity();
+
+	if (currai6[queueit - 1] == 0 && !written) {
+		writeToFile();
+		written = 1;
+	}
+	if (currai6[queueit - 1] != 0) {
+		written = 0;
+	}
+
+	//glTranslatef(0, 0, -10);
+	//glTranslatef(0, 0, -1000);
+
+	/*
+	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, -1, -1.0, DAQmx_Val_GroupByChannel, currentData, 1400700, &read, NULL));
+	goto Skip;
+
+	Error:
+	if (DAQmxFailed(error)) {
+	DAQmxGetExtendedErrorInfo(errBuff, 2048);
+	printf("\nDAQmx Error: %s\n", errBuff);
+	}
+
+	Skip:
+
+	for (int i = 0; i < read; i++) {
+	if (queueit >= 200100) {
+	queueit = 0;
+	}
+	//printf("%f\n", currentData[i]);
+	float64 * tempData = matrixMult((currentData[i] - bias0), (currentData[i + read] - bias1), (currentData[i + (read * 2)] - bias2), (currentData[i + (read * 3)] - bias3), (currentData[i + (read * 4)] - bias4), (currentData[i + (read * 5)] - bias5));
+	currai0[queueit] = tempData[0];
+	//printf("%f", tempData[0]);
+	currai1[queueit] = tempData[1];
+	currai2[queueit] = tempData[2];
+	currai3[queueit] = tempData[3];
+	currai4[queueit] = tempData[4];
+	currai5[queueit] = tempData[5];
+	currai6[queueit] = (int64)currentData[i + (read * 6)];
+	//currai6[queueit] = (int64)currentData[i];
+	//currxp[queueit] = tempxp;
+	currxp[queueit] = OLangle;
+	//currxpcl[queueit] = tempxp - aggrlx;
+	currxpcl[queueit] = OLangle + CLangle;
+	queueit++;
+	}
+	//*/
+	/*
+	if (closedLoop) {
+	float T = calcFeedback();
+	if (abs(T) < threshold) {
+	T = 0;
+	}
+	float angAcc = (float)(T / (2.43 / 10000000.0)) * (1.0 / 120.0) * (1.0 / 120.0);
+	CLangle += (float)((angAcc / 2) * (read * (1.0 / 10000.0) * 120.0) * (read * (1.0 / 10000.0) * 120.0) + angVel * (read * (1.0 / 10000.0) * 120.0)) * (180.0 / PI);
+	angVel += (float)angAcc * (read * (1.0 / 10000.0) * 120.0);
+	printf("\n%f", T);
+	}
+
+	//float OLangle = 0;
+	if (drifting) {
+	OLangle = driftVel * angle;
+	//glRotatef(driftVel * angle, horizontal, vertical, spinning);
+	}
+	else {
+	OLangle = (180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0;
+	//glRotatef((180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0, horizontal, vertical, spinning);
+	}
+
+	if (closedLoop) {
+	glRotatef(OLangle + CLangle, horizontal, vertical, spinning);
+	//printf("\n%f", CLangle);
+	}
+	else {
+	//glRotatef(OLangle, horizontal, vertical, spinning);
+	glRotatef(OLangle, vertical, horizontal, spinning);
+	}
+
+	if (!clear) {
+	DisplaySphere(5, texture[0]);
+	}
+	*/
+
+
+	//glutSwapBuffers();
+
+	angle++; //Not really the angle, more like the time step incrementing thing.
+	///*
+	glutSetWindow(window1);
+	//glutSwapBuffers();
+	glutPostRedisplay();
+	glutSetWindow(window2);
+	//glutSwapBuffers();
+	glutPostRedisplay();
+	glutSetWindow(window3);
+	//glutSwapBuffers();
+	glutPostRedisplay();
+	//*/
+
+	/*
+	std::thread t1(display1);
+	std::thread t2(display2);
+	std::thread t3(display3);
+	t1.join();
+	t2.join();
+	t3.join();
+	//*/
+
+	/*
+	//wglSwapIntervalEXT(-1);
+	glutSetWindow(window1);
+	display1();
+	//wglSwapIntervalEXT(-1);
+	glutSwapBuffers();
+	//std::thread t1(display1);
+	//glutPostRedisplay();
+	glutSetWindow(window2);
+	display2();
+	//wglSwapIntervalEXT(-1);
+	glutSwapBuffers();
+	//std::thread t2(display2);
+	//glutPostRedisplay();
+	glutSetWindow(window3);
+	display3();
+	//wglSwapIntervalEXT(-1);
+	glutSwapBuffers();
+	//std::thread t3(display3);
+	//glutPostRedisplay();
+	//wglSwapIntervalEXT(-1);
+	//*/
+}
+
+
 
 /*
 * Callback function to retrieve key value movement
@@ -1042,6 +1004,7 @@ void letter_pressed(unsigned char key, int x, int y) {
 	float degree;
 	float frequency;
 	float driftDeg; //drift in degrees/sec
+	float oscAmp; //oscillation amplitude in degrees
 	switch (key) {
 	case 98: //b
 		if (clear) {
@@ -1077,41 +1040,41 @@ void letter_pressed(unsigned char key, int x, int y) {
 
 		//Not implemented yet
 		/*
-	case 114: //r
-		
+		case 114: //r
+
 		printf("We are entering our switch case\n");
 		glPushMatrix();
 		glTranslatef(200, 300, 0);
 		glRotatef(90, 0, 0, 1);
 		glBegin(GL_QUADS);
 		{
-			glVertex2f(-num / 2, -num2 / 2);
-			glVertex2f(-num2 / 2, -num2 / 2);
-			glVertex2f(num2 / 2, num3 / 2);
-			glVertex2f(num / 2, num3 / 2);
+		glVertex2f(-num / 2, -num2 / 2);
+		glVertex2f(-num2 / 2, -num2 / 2);
+		glVertex2f(num2 / 2, num3 / 2);
+		glVertex2f(num / 2, num3 / 2);
 		}
 		glEnd();
 		glPopMatrix();
 		break;
 		*/
 		/*
-	case 45: //- will shrink bar
+		case 45: //- will shrink bar
 		if (barwidthIt > 0) {
-			barwidthIt--;
-			barwidth = barwidthArr[barwidthIt];
-			if (horizontal) {
-				//barwidth *= 1.763313609;
-			}
+		barwidthIt--;
+		barwidth = barwidthArr[barwidthIt];
+		if (horizontal) {
+		//barwidth *= 1.763313609;
+		}
 		}
 		glutPostRedisplay();
 		break;
-	case 61: //= will enlarge bar
+		case 61: //= will enlarge bar
 		if (barwidthIt < 2) {
-			barwidthIt++;
-			barwidth = barwidthArr[barwidthIt];
-			if (horizontal) {
-				//barwidth *= 1.763313609;
-			}
+		barwidthIt++;
+		barwidth = barwidthArr[barwidthIt];
+		if (horizontal) {
+		//barwidth *= 1.763313609;
+		}
 		}
 		glutPostRedisplay();
 		break;
@@ -1148,6 +1111,7 @@ void letter_pressed(unsigned char key, int x, int y) {
 		printf("\nInput oscillation frequency in Hz: ");
 		scanf("%f", &frequency);
 		delay = 120.0 / frequency;
+		//delay = 60.0 / frequency;
 		drifting = 0;
 		glutPostRedisplay();
 		break;
@@ -1155,6 +1119,7 @@ void letter_pressed(unsigned char key, int x, int y) {
 		printf("\nInput oscillation frequency in Hz: ");
 		scanf("%f", &frequency);
 		delay = 120.0 / frequency;
+		//delay = 60.0 / frequency;
 		drifting = 0;
 		glutPostRedisplay();
 		break;
@@ -1163,6 +1128,7 @@ void letter_pressed(unsigned char key, int x, int y) {
 		scanf("%f", &driftDeg);
 		//driftVel = 2.0*PI*0.307975*(driftDeg / 360.0)*1342.281879*(1.0 / 120.0);
 		driftVel = driftDeg / 120.0;
+		//driftVel = driftDeg / 60.0;
 		drifting = 1;
 		glutPostRedisplay();
 		break;
@@ -1171,6 +1137,7 @@ void letter_pressed(unsigned char key, int x, int y) {
 		scanf("%f", &driftDeg);
 		//driftVel = 2.0*PI*0.307975*(driftDeg / 360.0)*1342.281879*(1.0 / 120.0);
 		driftVel = driftDeg / 120.0;
+		//driftVel = driftDeg / 60.0;
 		drifting = 1;
 		glutPostRedisplay();
 		break;
@@ -1238,6 +1205,18 @@ void letter_pressed(unsigned char key, int x, int y) {
 		vertical = 0;
 		printf("\nSpinning.");
 		break;
+	case 65: //A will request oscillation amplitude in degrees
+		printf("\nInput oscillation amplitude in degrees: ");
+		scanf("%f", &oscAmp);
+		oscillationAmp = oscAmp;
+		glutPostRedisplay();
+		break;
+	case 97: //a will request oscillation amplitude in degrees
+		printf("\nInput oscillation amplitude in degrees: ");
+		scanf("%f", &oscAmp);
+		oscillationAmp = oscAmp;
+		glutPostRedisplay();
+		break;
 	}
 }
 
@@ -1255,35 +1234,24 @@ void init(void) {
 
 	glEnable(GL_CULL_FACE);
 
-	//texture[0] = LoadTextureRAW(“earth.raw”);
+	//texture[0] = LoadTextureRAW(?earth.raw?);
 
 	//CreateSphere(70, 0, 0, 0);
 	CreateSphere(R, 0, 0, 0);
 
-	/*
-	// Initialize GLEW
-	glewExperimental = true; // Needed for core profile
-	if (glewInit() != GLEW_OK) {
-		fprintf(stderr, "Failed to initialize GLEW\n");
-		getchar();
-		exit(1);
-		//glfwTerminate();
-		//return -1;
-	}
+	glEnableClientState(GL_NORMAL_ARRAY);
+	glEnableClientState(GL_COLOR_ARRAY);
+	glEnableClientState(GL_VERTEX_ARRAY);
+	//glEnable(GL_NORMAL_ARRAY);
+	//glEnable(GL_COLOR_ARRAY);
+	//glEnable(GL_VERTEX_ARRAY);
+	glNormalPointer(GL_FLOAT, 9 * sizeof(GLfloat), arr + 3);
+	glColorPointer(3, GL_FLOAT, 9 * sizeof(GLfloat), arr + 6);
+	glVertexPointer(3, GL_FLOAT, 9 * sizeof(GLfloat), arr);
 
-	
-	glClearColor(0.0f, 0.0f, 0.9f, 0.0f);
-	//GLuint VertexArrayID1;
-	glGenVertexArrays(1, &VertexArrayID);
-	glBindVertexArray(VertexArrayID);
-
-	programID = LoadShaders("SimpleVertexShader.vertexshader", "SimpleFragmentShader.fragmentshader");
-
-	glGenBuffers(1, &vertexbuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-	//glBufferData(GL_ARRAY_BUFFER, sizeof(vert), vert, GL_STATIC_DRAW);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
-	*/
+	glDisableClientState(GL_VERTEX_ARRAY);  // disable vertex arrays
+	glDisableClientState(GL_COLOR_ARRAY);
+	glDisableClientState(GL_NORMAL_ARRAY);
 
 }
 void reshape(int w, int h) {
@@ -1294,8 +1262,8 @@ void reshape(int w, int h) {
 
 	glLoadIdentity();
 
-	//gluPerspective(60, (GLfloat)w / (GLfloat)h, 0.1, 100.0);
-	gluPerspective(90, (GLfloat)w / (GLfloat)h, 0.1, 1000.0);
+	//gluPerspective(60, (GLfloat)w / (GLfloat)h, 0.1, 1000.0);
+	gluPerspective(120, (GLfloat)w / (GLfloat)h, 0.1, 1000.0);
 
 
 	glMatrixMode(GL_MODELVIEW);
@@ -1309,8 +1277,8 @@ void reshape2(int w, int h) {
 
 	glLoadIdentity();
 
-	//gluPerspective(60, (GLfloat)w / (GLfloat)h, 0.1, 100.0);
-	gluPerspective(90, (GLfloat)w / (GLfloat)h, 0.1, 1000.0);
+	//gluPerspective(60, (GLfloat)w / (GLfloat)h, 0.1, 1000.0);
+	gluPerspective(120, (GLfloat)w / (GLfloat)h, 0.1, 1000.0);
 
 
 	glMatrixMode(GL_MODELVIEW);
@@ -1323,9 +1291,9 @@ void reshape3(int w, int h) {
 	glMatrixMode(GL_PROJECTION);
 
 	glLoadIdentity();
-
-	//gluPerspective(60, (GLfloat)w / (GLfloat)h, 0.1, 100.0);
-	gluPerspective(90, (GLfloat)w / (GLfloat)h, 0.1, 1000.0);
+	
+	//gluPerspective(60, (GLfloat)w / (GLfloat)h, 0.1, 1000.0);
+	gluPerspective(120, (GLfloat)w / (GLfloat)h, 0.1, 1000.0);
 
 
 	glMatrixMode(GL_MODELVIEW);
@@ -1333,8 +1301,18 @@ void reshape3(int w, int h) {
 
 int main(int argc, char **argv) {
 
-	PFNWGLSWAPINTERVALEXTPROC       wglSwapIntervalEXT = NULL;
-	PFNWGLGETSWAPINTERVALEXTPROC    wglGetSwapIntervalEXT = NULL;
+	//PFNWGLSWAPINTERVALEXTPROC       wglSwapIntervalEXT = NULL;
+	//PFNWGLGETSWAPINTERVALEXTPROC    wglGetSwapIntervalEXT = NULL;
+	PFNWGLJOINSWAPGROUPNVPROC		wglJoinSwapGroupNV = NULL;
+	PFNWGLBINDSWAPBARRIERNVPROC		wglBindSwapBarrierNV = NULL;
+	PFNWGLENABLEGENLOCKI3DPROC		wglEnableGenlockI3D = NULL;
+	PFNWGLDISABLEGENLOCKI3DPROC		wglDisableGenlockI3D = NULL;
+	PFNWGLGENLOCKSOURCEI3DPROC		wglGenlockSourceI3D = NULL;
+	HDC hdc1;
+	HDC hdc2;
+	HDC hdc3;
+	GLuint num = 1;
+
 	float tempWeight;
 	//printf("Press left or right arrows to move our rectangle\n");
 	/*
@@ -1348,6 +1326,7 @@ int main(int argc, char **argv) {
 	*/
 
 	// DAQmx analog voltage channel and timing parameters
+	printf("Please wait about 20 seconds\n");
 
 	/*
 	DAQmxErrChk(DAQmxCreateTask("", &taskHandle));
@@ -1355,6 +1334,7 @@ int main(int argc, char **argv) {
 	// IMPORTANT
 	//changed Dev1 to Dev5 as the connection established. So verify what Dev is being used to update this code. DEV5 is our force torque.
 	DAQmxErrChk(DAQmxCreateAIVoltageChan(taskHandle, "Dev1/ai0:6", "", DAQmx_Val_Diff, -10.0, 10.0, DAQmx_Val_Volts, NULL));
+	//DAQmxErrChk(DAQmxCreateAIVoltageChan(taskHandle, "Dev1/ai6", "", DAQmx_Val_Diff, -10.0, 10.0, DAQmx_Val_Volts, NULL));
 	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle, "", 10000.0, DAQmx_Val_Rising, DAQmx_Val_ContSamps, 200100));
 	// DAQmx Start Code
 	DAQmxErrChk(DAQmxStartTask(taskHandle));
@@ -1373,17 +1353,18 @@ int main(int argc, char **argv) {
 	printf("\ngot passed through analog");
 	printf("\n%f\n", data[1199999]);
 	for (int i = 0; i < read; i++) {
-		if (queueit >= 200100) {
-			queueit = 0;
-		}
-		currai0[queueit] = data[i];
-		currai1[queueit] = data[i + read];
-		currai2[queueit] = data[i + (read * 2)];
-		currai3[queueit] = data[i + (read * 3)];
-		currai4[queueit] = data[i + (read * 4)];
-		currai5[queueit] = data[i + (read * 5)];
-		currai6[queueit] = (int64)data[i + (read * 6)]; //our trigger buttom. Must be floored to 0 or 1.
-		queueit++;
+	if (queueit >= 200100) {
+	queueit = 0;
+	}
+	currai0[queueit] = data[i];
+	currai1[queueit] = data[i + read];
+	currai2[queueit] = data[i + (read * 2)];
+	currai3[queueit] = data[i + (read * 3)];
+	currai4[queueit] = data[i + (read * 4)];
+	currai5[queueit] = data[i + (read * 5)];
+	currai6[queueit] = (int64)data[i + (read * 6)]; //our trigger buttom. Must be floored to 0 or 1.
+	//currai6[queueit] = (int64)data[i]; //our trigger buttom. Must be floored to 0 or 1.
+	queueit++;
 	}
 	bias0 = biasing(currai0);
 	bias1 = biasing(currai1);
@@ -1392,44 +1373,47 @@ int main(int argc, char **argv) {
 	bias4 = biasing(currai4);
 	bias5 = biasing(currai5);
 	writeToFile();
-	*/
+	//*/
 
 	/*
 	** This is where the closed-loop stuff ends
 	*/
 
 	glutInit(&argc, argv);
-	glutInitContextVersion(3, 3);
 
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH);
 
-	glutInitWindowSize(800, 454);
+	//glutInitWindowSize(800, 450);
+	glutInitWindowSize(450, 800);
 
-	glutInitWindowPosition(100, 100);
+	glutInitWindowPosition(2400, 100);
+	//glutIdleFunc(display);
+
 	glutIdleFunc(display);
 
-	glutCreateWindow("A basic OpenGL Window");
-	window1 = glutGetWindow();
-	glutCreateWindow("Second basic OpenGL Window");
-	window2 = glutGetWindow();
-	glutCreateWindow("Don't put me in a box");
-	window3 = glutGetWindow();
-
-	glutSetWindow(window1);
-
-	init();
-
+	window1 = glutCreateWindow("A basic OpenGL Window");
+	hdc1 = wglGetCurrentDC();
+	//hdc1;
+	//window1 = glutGetWindow();
 	
+	//glutSetWindow(window1);
 
 	if (WGLExtensionSupported("WGL_EXT_swap_control"))
 	{
+		HGLRC bob = wglGetCurrentContext();
 		// Extension is supported, init pointers.
 		wglSwapIntervalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
 
 		// this is another function from WGL_EXT_swap_control extension
 		wglGetSwapIntervalEXT = (PFNWGLGETSWAPINTERVALEXTPROC)wglGetProcAddress("wglGetSwapIntervalEXT");
-		wglSwapIntervalEXT(-1);
+		//wglSwapIntervalEXT(-1);
 	}
+
+	init();
+
+	//if (WGLExtensionSupported("WGL_NV_swap_group")) {
+	//
+	//}
 
 	glutFullScreen(); //This makes shit fullscreen
 
@@ -1441,11 +1425,18 @@ int main(int argc, char **argv) {
 
 
 	// Second window
-	glutSetWindow(window2);
+	glutInitWindowSize(450, 800);
+
+	glutInitWindowPosition(4000, 100);
+	window2 = glutCreateWindow("Second basic OpenGL Window");
+	hdc2 = wglGetCurrentDC();
+	//window2 = glutGetWindow();
+	//glutSetWindow(window2);
+	//glutInitWindowPosition(4000, 100);
 	init();
 
 
-
+	/*
 	if (WGLExtensionSupported("WGL_EXT_swap_control"))
 	{
 		// Extension is supported, init pointers.
@@ -1455,8 +1446,10 @@ int main(int argc, char **argv) {
 		wglGetSwapIntervalEXT = (PFNWGLGETSWAPINTERVALEXTPROC)wglGetProcAddress("wglGetSwapIntervalEXT");
 		wglSwapIntervalEXT(-1);
 	}
+	*/
+	//wglSwapIntervalEXT(-1);
 
-	//glutFullScreen(); //This makes shit fullscreen
+	glutFullScreen(); //This makes shit fullscreen
 
 	glutDisplayFunc(display2);
 
@@ -1468,11 +1461,18 @@ int main(int argc, char **argv) {
 
 
 	// Third window
-	glutSetWindow(window3);
+	glutInitWindowSize(450, 800);
+
+	glutInitWindowPosition(5600, 100);
+	window3 = glutCreateWindow("Don't put me in a box");
+	hdc3 = wglGetCurrentDC();
+	//window3 = glutGetWindow();
+	//glutSetWindow(window3);
+	//glutInitWindowPosition(5600, 100);
 	init();
 
 
-
+	/*
 	if (WGLExtensionSupported("WGL_EXT_swap_control"))
 	{
 		// Extension is supported, init pointers.
@@ -1482,8 +1482,10 @@ int main(int argc, char **argv) {
 		wglGetSwapIntervalEXT = (PFNWGLGETSWAPINTERVALEXTPROC)wglGetProcAddress("wglGetSwapIntervalEXT");
 		wglSwapIntervalEXT(-1);
 	}
+	*/
+	//wglSwapIntervalEXT(-1);
 
-	//glutFullScreen(); //This makes shit fullscreen
+	glutFullScreen(); //This makes shit fullscreen
 
 	glutDisplayFunc(display3);
 
@@ -1492,6 +1494,31 @@ int main(int argc, char **argv) {
 	glutReshapeFunc(reshape3);
 
 	//glutKeyboardFunc(letter_pressed);
+
+	/*
+	if (WGLExtensionSupported("WGL_I3D_genlock")) {
+		HGLRC bob = wglGetCurrentContext();
+		wglEnableGenlockI3D = (PFNWGLENABLEGENLOCKI3DPROC)wglGetProcAddress("wglEnableGenlockI3D");
+		wglDisableGenlockI3D = (PFNWGLDISABLEGENLOCKI3DPROC)wglGetProcAddress("wglDisableGenlockI3D");
+		wglGenlockSourceI3D = (PFNWGLGENLOCKSOURCEI3DPROC)wglGetProcAddress("wglGenlockSourceI3D");
+		wglEnableGenlockI3D(hdc1);
+		wglGenlockSourceI3D(hdc1, WGL_GENLOCK_SOURCE_MULTIVIEW_I3D);
+	}
+	*/
+
+	/*
+	if (WGLExtensionSupported("WGL_NV_swap_group")) {
+	//if (WGLExtensionSupported("wglGetExtensionsStringARB")) {
+		HGLRC bob = wglGetCurrentContext();
+		//PFNWGLGETEXTENSIONSSTRINGARBPROC wglGetExtensionsStringARB = (PFNWGLGETEXTENSIONSSTRINGARBPROC)wglGetProcAddress("wglGetExtensionsStringARB");
+		wglJoinSwapGroupNV = (PFNWGLJOINSWAPGROUPNVPROC)wglGetProcAddress("wglJoinSwapGroupNV");
+		wglBindSwapBarrierNV = (PFNWGLBINDSWAPBARRIERNVPROC)wglGetProcAddress("wglBindSwapBarrierNV");
+		wglJoinSwapGroupNV(hdc1, num);
+		wglJoinSwapGroupNV(hdc2, num);
+		wglJoinSwapGroupNV(hdc3, num);
+		//wglBindSwapBarrierNV(num, num);
+	}
+	*/
 
 	goto Skip;
 Error:
