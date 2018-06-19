@@ -24,6 +24,7 @@
 #include <time.h>
 #include <windows.h>
 #include "wglext.h"
+//#include <mutex>
 //#include <thread>
 //#include <string.h>
 //#include <GL/glui.h>
@@ -54,7 +55,8 @@ const float threshold = 0.0025;
 int window1; //Main window
 int window2;
 int window3;
-float oscillationAmp = 360.0; // This is the amplitude of the oscillation in degrees.
+float oscillationAmp = 180.0; // This is the amplitude of the oscillation in degrees.
+bool written = 0;
 
 
 // for NIDAQ data handling
@@ -659,11 +661,18 @@ void display(void) {
 	glLoadIdentity();
 
 
+	if (currai6[queueit - 1] == 0 && !written) {
+		writeToFile();
+		written = 1;
+	}
+	if (currai6[queueit - 1] != 0) {
+		written = 0;
+	}
 
 	//glTranslatef(0, 0, -10);
 	//glTranslatef(0, 0, -1000);
 
-	/*
+	///*
 	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, -1, -1.0, DAQmx_Val_GroupByChannel, currentData, 1400700, &read, NULL));
 	goto Skip;
 
@@ -695,7 +704,7 @@ void display(void) {
 	currxpcl[queueit] = OLangle + CLangle;
 	queueit++;
 	}
-	*/
+	//*/
 	/*
 	if (closedLoop) {
 	float T = calcFeedback();
@@ -736,7 +745,7 @@ void display(void) {
 	int delta_t = glutGet(GLUT_ELAPSED_TIME) - fps_start;
 	if (delta_t > 1000) {
 		//std::cout << double(delta_t) / double(fps_frames) << std::endl;
-		//std::cout << double(fps_frames) << std::endl;
+		std::cout << double(fps_frames) << std::endl;
 		//std::cout << delta_t << std::endl;
 		fps_frames = 0;
 		fps_start = glutGet(GLUT_ELAPSED_TIME);
@@ -790,9 +799,9 @@ void display1(void) {
 		//glRotatef(driftVel * angle, horizontal, vertical, spinning);
 	}
 	else {
-		OLangle = (oscillationAmp / 2.0) * (-1) * cosf(((float)2 * angle * PI / delay)) + (oscillationAmp / 2.0);
+		OLangle = (oscillationAmp) * (-1) * cosf(((float)2 * angle * PI / delay)) + (oscillationAmp);
 		//glRotatef((180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0, horizontal, vertical, spinning);
-		if ((OLangle < (oscillationAmp / 2.0) && !freq_measured) || (OLangle >(oscillationAmp / 2.0) && freq_measured)) {
+		if ((OLangle < (oscillationAmp) && !freq_measured) || (OLangle >(oscillationAmp) && freq_measured)) {
 			float delta = (float)(glutGet(GLUT_ELAPSED_TIME) - freq_start) / 1000.0;
 			std::cout << 1.0 / (2 * delta) << std::endl;
 			freq_start = glutGet(GLUT_ELAPSED_TIME);
@@ -859,7 +868,7 @@ void display2(void) {
 		//glRotatef(driftVel * angle, horizontal, vertical, spinning);
 	}
 	else {
-		OLangle = (oscillationAmp / 2.0) * (-1) * cosf(((float)2 * angle * PI / delay)) + (oscillationAmp / 2.0);
+		OLangle = (oscillationAmp) * (-1) * cosf(((float)2 * angle * PI / delay)) + (oscillationAmp);
 		//glRotatef((180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0, horizontal, vertical, spinning);
 	}
 
@@ -922,7 +931,7 @@ void display3(void) {
 		//glRotatef(driftVel * angle, horizontal, vertical, spinning);
 	}
 	else {
-		OLangle = (oscillationAmp / 2.0) * (-1) * cosf(((float)2 * angle * PI / delay)) + (oscillationAmp / 2.0);
+		OLangle = (oscillationAmp) * (-1) * cosf(((float)2 * angle * PI / delay)) + (oscillationAmp);
 		//glRotatef((180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0, horizontal, vertical, spinning);
 	}
 
@@ -1266,14 +1275,15 @@ int main(int argc, char **argv) {
 	scanf("%f", &tempWeight);
 	weight = tempWeight / 1000;
 	printf("Please wait about 20 seconds\n");
-	*/
+	//*/
+	printf("Please wait about 20 seconds\n");
 	/*
 	** Add the closed-loop stuff here.
 	*/
 
 	// DAQmx analog voltage channel and timing parameters
 
-	/*
+	///*
 	DAQmxErrChk(DAQmxCreateTask("", &taskHandle));
 
 	// IMPORTANT
@@ -1316,7 +1326,7 @@ int main(int argc, char **argv) {
 	bias4 = biasing(currai4);
 	bias5 = biasing(currai5);
 	writeToFile();
-	*/
+	//*/
 
 	/*
 	** This is where the closed-loop stuff ends
