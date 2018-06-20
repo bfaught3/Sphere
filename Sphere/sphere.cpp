@@ -10,6 +10,12 @@
 #define DAQmxErrChk(functionCall) if( DAQmxFailed(error=(functionCall)) ) goto Error; else
 #define DAQmx_Val_GroupByChannel 0
 
+#ifndef M_PI
+#define M_PI            (3.14159265358979f)
+#endif
+#define DTOR            (M_PI/180.0)
+#define RTOD            (180.0/M_PI)
+
 // OpenGL is pretty senstive so our header file glut.h has to be the first on our include files
 #include <GL/glut.h> // MUST BE FIRST (not including MACROS. Those are fine first.)
 #include <GL/GL.h>
@@ -108,10 +114,11 @@ const int VertexCount = (360 / space) * (360 / space) * 4;
 
 VERTICES VERTEX[VertexCount];
 
-GLfloat vert[3 * VertexCount];
+GLfloat vertices[3 * VertexCount];
 GLfloat norm[3 * VertexCount];
 GLfloat col[3 * VertexCount];
 GLfloat arr[9 * VertexCount];
+GLfloat arr2[94608]; // (360/5) * (360/5) * 2 * 9???
 
 static unsigned int fps_start = 0;
 static unsigned int fps_frames = 0;
@@ -412,15 +419,24 @@ void DisplaySphere(double R, GLuint texture) {
 	//glEnable(GL_NORMAL_ARRAY);
 	//glEnable(GL_COLOR_ARRAY);
 	//glEnable(GL_VERTEX_ARRAY);
+
+	/*
 	glNormalPointer(GL_FLOAT, 9 * sizeof(GLfloat), arr + 3);
 	glColorPointer(3, GL_FLOAT, 9 * sizeof(GLfloat), arr + 6);
 	glVertexPointer(3, GL_FLOAT, 9 * sizeof(GLfloat), arr);
+	//*/
+
+	glNormalPointer(GL_FLOAT, 9 * sizeof(GLfloat), arr2 + 3);
+	glColorPointer(3, GL_FLOAT, 9 * sizeof(GLfloat), arr2 + 6);
+	glVertexPointer(3, GL_FLOAT, 9 * sizeof(GLfloat), arr2);
 
 	glPushMatrix();
 	//glTranslatef(-2, -2, 0);                // move to bottom-left
 
 	//glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_BYTE, indices);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 27 * VertexCount);
+	//glDrawArrays(GL_TRIANGLE_STRIP, 0, 27 * VertexCount);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 94608);
+
 
 	glPopMatrix();
 
@@ -625,19 +641,19 @@ void CreateSphere(double R, double H, double K, double Z) {
 
 	// Array of vertices
 	for (int i = 0; i < VertexCount; i++) {
-		vert[3 * i] = (GLfloat)VERTEX[i].X;
-		vert[3 * i + 1] = (GLfloat)VERTEX[i].Y;
-		vert[3 * i + 2] = (GLfloat)VERTEX[i].Z;
+		vertices[3 * i] = (GLfloat)VERTEX[i].X;
+		vertices[3 * i + 1] = (GLfloat)VERTEX[i].Y;
+		vertices[3 * i + 2] = (GLfloat)VERTEX[i].Z;
 		//printf("\n%f,%f,%f", vert[3 * i], vert[3 * i + 1], vert[3 * i + 2]);
-		norm[3 * i] = vert[3 * i] / R;
-		norm[3 * i + 1] = vert[3 * i + 1] / R;
-		norm[3 * i + 2] = vert[3 * i + 2] / R;
+		norm[3 * i] = vertices[3 * i] / R;
+		norm[3 * i + 1] = vertices[3 * i + 1] / R;
+		norm[3 * i + 2] = vertices[3 * i + 2] / R;
 		col[3 * i] = 1;
 		col[3 * i + 1] = 1;
 		col[3 * i + 2] = 1;
-		arr[9 * i] = vert[3 * i];
-		arr[9 * i + 1] = vert[3 * i + 1];
-		arr[9 * i + 2] = vert[3 * i + 2];
+		arr[9 * i] = vertices[3 * i];
+		arr[9 * i + 1] = vertices[3 * i + 1];
+		arr[9 * i + 2] = vertices[3 * i + 2];
 		arr[9 * i + 3] = norm[3 * i + 0];
 		arr[9 * i + 4] = norm[3 * i + 1];
 		arr[9 * i + 5] = norm[3 * i + 2];
@@ -646,6 +662,85 @@ void CreateSphere(double R, double H, double K, double Z) {
 		arr[9 * i + 8] = col[3 * i + 2];
 		//printf("\n%f,%f,%f,%f,%f,%f,%f,%f,%f", arr[9 * i], arr[9 * i + 1], arr[9 * i + 2], arr[9 * i + 3], arr[9 * i + 4], arr[9 * i + 5], arr[9 * i + 6], arr[9 * i + 7], arr[9 * i + 8]);
 	}
+}
+
+static void
+vert(float theta, float phi, int i)
+{
+	float r = 0.75f;
+	r = R;
+	float x, y, z, nx, ny, nz;
+
+	nx = sin(DTOR * theta) * cos(DTOR * phi);
+	ny = sin(DTOR * phi);
+	nz = cos(DTOR * theta) * cos(DTOR * phi);
+	glNormal3f(nx, ny, nz);
+
+	x = r * sin(DTOR * theta) * cos(DTOR * phi);
+	y = r * sin(DTOR * phi);
+	//z = -ZTRANS + r * cos(DTOR * theta) * cos(DTOR * phi);
+	z = r * cos(DTOR * theta) * cos(DTOR * phi);
+	glVertex4f(x, y, z, 1.0);
+
+	arr2[9 * i] = x;
+	arr2[9 * i + 1] = z;
+	arr2[9 * i + 2] = y;
+	arr2[9 * i + 3] = nx;
+	arr2[9 * i + 4] = nz;
+	arr2[9 * i + 5] = ny;
+	arr2[9 * i + 6] = 1;
+	arr2[9 * i + 7] = 1;
+	arr2[9 * i + 8] = 1;
+	
+}
+
+static void
+DrawSphere(float del)
+{
+	//glLoadIdentity();
+	float phi, phi2, theta;
+	int n = 0;
+
+	glColor4f(1.0, 1.0, 1.0, 1.0);
+	for (phi = -0.0f; phi < 360.0f; phi += del) {
+		//glBegin(GL_TRIANGLE_STRIP);
+
+		phi2 = phi + del;
+
+		for (theta = -0.0f; theta <= 360.0f; theta += del) {
+			if (fmod(theta, 2 * viewingAngle) <= viewingAngle && theta <= single) {
+				vert(theta, phi, n);
+				vert(theta, phi2, n + 1);
+			}
+			else {
+				glNormal3f(0, 0, 0);
+				glVertex4f(0, 0, 0, 0);
+				glNormal3f(0, 0, 0);
+				glVertex4f(0, 0, 0, 0);
+				arr2[9 * n] = 0;
+				arr2[9 * n + 1] = 0;
+				arr2[9 * n + 2] = 0;
+				arr2[9 * n + 3] = 0;
+				arr2[9 * n + 4] = 0;
+				arr2[9 * n + 5] = 0;
+				arr2[9 * n + 6] = 0;
+				arr2[9 * n + 7] = 0;
+				arr2[9 * n + 8] = 0;
+				arr2[9 * (n + 1)] = 0;
+				arr2[9 * (n + 1) + 1] = 0;
+				arr2[9 * (n + 1) + 2] = 0;
+				arr2[9 * (n + 1) + 3] = 0;
+				arr2[9 * (n + 1) + 4] = 0;
+				arr2[9 * (n + 1) + 5] = 0;
+				arr2[9 * (n + 1) + 6] = 0;
+				arr2[9 * (n + 1) + 7] = 0;
+				arr2[9 * (n + 1) + 8] = 0;
+			}
+			n += 2;
+		}
+		//glEnd();
+	}
+	printf("\n%i", n);
 }
 
 void display(void) {
@@ -672,7 +767,7 @@ void display(void) {
 	//glTranslatef(0, 0, -10);
 	//glTranslatef(0, 0, -1000);
 
-	///*
+	/*
 	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, -1, -1.0, DAQmx_Val_GroupByChannel, currentData, 1400700, &read, NULL));
 	goto Skip;
 
@@ -825,6 +920,7 @@ void display1(void) {
 
 	if (!clear) {
 		DisplaySphere(1, texture[0]);
+		//DrawSphere(5.0);
 	}
 
 
@@ -1046,12 +1142,14 @@ void letter_pressed(unsigned char key, int x, int y) {
 		*/
 	case 49: //1 will make stimulus single bar
 		single = viewingAngle;
-		CreateSphere(R, 0, 0, 0);
+		//CreateSphere(R, 0, 0, 0);
+		DrawSphere(5.0);
 		glutPostRedisplay();
 		break;
 	case 50: //2 will make stimulus 5-bar grate
 		single = 360;
-		CreateSphere(R, 0, 0, 0);
+		//CreateSphere(R, 0, 0, 0);
+		DrawSphere(5.0);
 		glutPostRedisplay();
 		break;
 	case 86: //V will request viewing angle
@@ -1060,7 +1158,8 @@ void letter_pressed(unsigned char key, int x, int y) {
 		viewingAngle = degree;
 		//barwidth = (float) 0.307975 * tanf(degree * PI / (2.0 * 180.0)) * 1342.281879;
 		printf("%f", viewingAngle);
-		CreateSphere(R, 0, 0, 0);
+		//CreateSphere(R, 0, 0, 0);
+		DrawSphere(5.0);
 		glutPostRedisplay();
 		break;
 	case 118: //v will request viewing angle
@@ -1069,7 +1168,8 @@ void letter_pressed(unsigned char key, int x, int y) {
 		viewingAngle = degree;
 		//barwidth = (float) 0.307975 * tanf(degree * PI / (2.0 * 180.0)) * 1342.281879;
 		printf("%f", viewingAngle);
-		CreateSphere(R, 0, 0, 0);
+		//CreateSphere(R, 0, 0, 0);
+		DrawSphere(5.0);
 		glutPostRedisplay();
 		break;
 	case 70: //F will request frequency
@@ -1202,7 +1302,8 @@ void init(void) {
 	//texture[0] = LoadTextureRAW(?earth.raw?);
 
 	//CreateSphere(70, 0, 0, 0);
-	CreateSphere(R, 0, 0, 0);
+	//CreateSphere(R, 0, 0, 0);
+	DrawSphere(5.0);
 
 	glEnableClientState(GL_NORMAL_ARRAY);
 	glEnableClientState(GL_COLOR_ARRAY);
@@ -1283,7 +1384,7 @@ int main(int argc, char **argv) {
 
 	// DAQmx analog voltage channel and timing parameters
 
-	///*
+	/*
 	DAQmxErrChk(DAQmxCreateTask("", &taskHandle));
 
 	// IMPORTANT
