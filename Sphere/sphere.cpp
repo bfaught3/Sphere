@@ -51,6 +51,7 @@ bool spinning = 0;
 bool vertical = 1;
 const float R = 584.6207004;
 int single = 360;
+bool isSingle = 0;
 //const float R = 70;
 float weight = 1;
 int increment = 0;
@@ -225,7 +226,7 @@ void writeToFile() {
 		else {
 			sprintf(rpy, "Yaw");
 		}
-		if (single) {
+		if (isSingle) {
 			sprintf(gs, "Single Bar");
 		}
 		else {
@@ -767,7 +768,7 @@ void display(void) {
 	//glTranslatef(0, 0, -10);
 	//glTranslatef(0, 0, -1000);
 
-	/*
+	///*
 	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, -1, -1.0, DAQmx_Val_GroupByChannel, currentData, 1400700, &read, NULL));
 	goto Skip;
 
@@ -840,7 +841,7 @@ void display(void) {
 	int delta_t = glutGet(GLUT_ELAPSED_TIME) - fps_start;
 	if (delta_t > 1000) {
 		//std::cout << double(delta_t) / double(fps_frames) << std::endl;
-		std::cout << double(fps_frames) << std::endl;
+		std::cout << double(fps_frames) << " FPS" << std::endl;
 		//std::cout << delta_t << std::endl;
 		fps_frames = 0;
 		fps_start = glutGet(GLUT_ELAPSED_TIME);
@@ -898,7 +899,7 @@ void display1(void) {
 		//glRotatef((180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0, horizontal, vertical, spinning);
 		if ((OLangle < (oscillationAmp) && !freq_measured) || (OLangle >(oscillationAmp) && freq_measured)) {
 			float delta = (float)(glutGet(GLUT_ELAPSED_TIME) - freq_start) / 1000.0;
-			std::cout << 1.0 / (2 * delta) << std::endl;
+			std::cout << 1.0 / (2 * delta) << " Hz" << std::endl;
 			freq_start = glutGet(GLUT_ELAPSED_TIME);
 			freq_measured = !freq_measured;
 		}
@@ -1142,12 +1143,14 @@ void letter_pressed(unsigned char key, int x, int y) {
 		*/
 	case 49: //1 will make stimulus single bar
 		single = viewingAngle;
+		isSingle = 1;
 		//CreateSphere(R, 0, 0, 0);
 		DrawSphere(5.0);
 		glutPostRedisplay();
 		break;
 	case 50: //2 will make stimulus 5-bar grate
 		single = 360;
+		isSingle = 0;
 		//CreateSphere(R, 0, 0, 0);
 		DrawSphere(5.0);
 		glutPostRedisplay();
@@ -1384,7 +1387,7 @@ int main(int argc, char **argv) {
 
 	// DAQmx analog voltage channel and timing parameters
 
-	/*
+	///*
 	DAQmxErrChk(DAQmxCreateTask("", &taskHandle));
 
 	// IMPORTANT
