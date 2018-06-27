@@ -64,6 +64,14 @@ int window2;
 int window3;
 float oscillationAmp = 180.0; // This is the amplitude of the oscillation in degrees.
 bool written = 0;
+int d_t = 0;
+float Ixx = 2.55e-07;
+float Iyy = 2.83e-07;
+float Izz = 2.43e-07;
+float Ixz = -3.44e-08;
+bool vertical2 = 0; //This is to get the roll moment for yaw stimuli
+bool spinning2 = 0; //This is to get the yaw moment for roll stimmuli
+const int longitudinalSpacing = 5; //Number of degrees between each longitudinal vertex? Something like that.
 
 
 // for NIDAQ data handling
@@ -119,9 +127,11 @@ GLfloat vertices[3 * VertexCount];
 GLfloat norm[3 * VertexCount];
 GLfloat col[3 * VertexCount];
 GLfloat arr[9 * VertexCount];
-GLfloat arr2[94608]; // (360/5) * (360/5) * 2 * 9???
+const int VertexCount2 = 2 * (360 / longitudinalSpacing / 1) * ((360 / longitudinalSpacing) + 1) * 9;
+GLfloat arr2[VertexCount2]; // (360/5) * (360/5) * 2 * 9???
 
 static unsigned int fps_start = 0;
+//int fps_start = 0;
 static unsigned int fps_frames = 0;
 
 static unsigned int t_0 = 0.0;
@@ -259,13 +269,13 @@ void writeToFile() {
 }
 
 /*
-*  Calculates the force along the x-axis, averaged over the most recent samples. The units are in Newtons.
+*  Calculates the force along the x-axis, averaged over the most recent samples. The units are in Newtons for forces, and Newtons * mm for moments.
 **/
 float64 calcFeedback() {
 	float64 avgai0 = 0;
 	for (int i = 0; i < read; i++) {
 		int32 j = queueit - read + i;
-		if (spinning) {
+		if (spinning) { //If spinning, read from Ty
 			if (j < 0) {
 				avgai0 += currai4[j + 200100];
 			}
@@ -281,14 +291,35 @@ float64 calcFeedback() {
 				avgai0 += currai3[j];
 			}
 		}
-		else {
-			if (j < 0) { //If vertical, read from Tz
+		else if (vertical2) { //The second moment is Ty
+			if (j < 0) { 
+				avgai0 += currai4[j + 200100];
+			}
+			else {
+				avgai0 += currai4[j];
+			}
+			vertical2 = 0;
+		}
+		else if (spinning2) { //The second moment is Tz
+			if (j < 0) {
+				avgai0 += currai5[j + 200100];
+			}
+			else {
+				avgai0 += currai5[j];
+			}
+			spinning2 = 0;
+		}
+		else { //If vertical, read from Tz
+			if (j < 0) {
 				avgai0 += currai5[j + 200100];
 			}
 			else {
 				avgai0 += currai5[j];
 			}
 		}
+	}
+	if (isnan(avgai0 / read)) {
+		printf("\nWhy the hell is read an int32");
 	}
 	avgai0 = avgai0 / read;
 
@@ -436,7 +467,7 @@ void DisplaySphere(double R, GLuint texture) {
 
 	//glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_BYTE, indices);
 	//glDrawArrays(GL_TRIANGLE_STRIP, 0, 27 * VertexCount);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 94608);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 2 * (360.0 / longitudinalSpacing) * ((360.0 / longitudinalSpacing) + 1) * 9);
 
 
 	glPopMatrix();
@@ -689,9 +720,16 @@ vert(float theta, float phi, int i)
 	arr2[9 * i + 3] = nx;
 	arr2[9 * i + 4] = nz;
 	arr2[9 * i + 5] = ny;
+	/*
 	arr2[9 * i + 6] = 1;
 	arr2[9 * i + 7] = 1;
 	arr2[9 * i + 8] = 1;
+	//*/
+	///*
+	arr2[9 * i + 6] = (float)0.5 * cosf(PI * theta / viewingAngle) + 0.5;
+	arr2[9 * i + 7] = (float)0.5 * cosf(PI * theta / viewingAngle) + 0.5;
+	arr2[9 * i + 8] = (float)0.5 * cosf(PI * theta / viewingAngle) + 0.5;
+	//*/
 	
 }
 
@@ -703,13 +741,14 @@ DrawSphere(float del)
 	int n = 0;
 
 	glColor4f(1.0, 1.0, 1.0, 1.0);
-	for (phi = -0.0f; phi < 360.0f; phi += del) {
+	for (phi = -0.0f; phi < 360.0f; phi += del * 1) {
 		//glBegin(GL_TRIANGLE_STRIP);
 
-		phi2 = phi + del;
+		phi2 = phi + del * 1;
 
 		for (theta = -0.0f; theta <= 360.0f; theta += del) {
-			if (fmod(theta, 2 * viewingAngle) <= viewingAngle && theta <= single) {
+			//if (fmod(theta, 2 * viewingAngle) <= viewingAngle && theta <= single) {
+			if (1) {
 				vert(theta, phi, n);
 				vert(theta, phi2, n + 1);
 			}
@@ -798,7 +837,7 @@ void display(void) {
 	currxp[queueit] = OLangle;
 	//currxpcl[queueit] = tempxp - aggrlx;
 	currxpcl[queueit] = OLangle + CLangle;
-	queueit++;
+queueit++;
 	}
 	//*/
 	/*
@@ -835,9 +874,12 @@ void display(void) {
 	if (!clear) {
 	DisplaySphere(5, texture[0]);
 	}
-	*/
+	//*/
 
 	fps_frames++;
+	if (fps_start > glutGet(GLUT_ELAPSED_TIME)) {
+		fps_start = 0;
+	}
 	int delta_t = glutGet(GLUT_ELAPSED_TIME) - fps_start;
 	if (delta_t > 1000) {
 		//std::cout << double(delta_t) / double(fps_frames) << std::endl;
@@ -846,7 +888,9 @@ void display(void) {
 		fps_frames = 0;
 		fps_start = glutGet(GLUT_ELAPSED_TIME);
 	}
-	int d_t = glutGet(GLUT_ELAPSED_TIME) - t_0;
+	//int d_t = glutGet(GLUT_ELAPSED_TIME) - t_0;
+	d_t = glutGet(GLUT_ELAPSED_TIME) - t_0;
+
 	//std::cout << d_t << std::endl;
 	t_0 = glutGet(GLUT_ELAPSED_TIME);
 
@@ -870,23 +914,67 @@ void display1(void) {
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	glLoadIdentity();	
+	glLoadIdentity();
 
 	//glTranslatef(0, 0, -10);
 	//glTranslatef(0, 0, -1000);
 
 	if (closedLoop) {
 		float T = calcFeedback();
-		if (abs(T) < threshold) {
+		if (abs(T) < threshold * 10.0) {
 			T = 0;
+			angVel = 0.0;
 		}
-		//float angAcc = (float)(T / (2.43 / 10000000.0)) * (1.0 / 120.0) * (1.0 / 120.0);
-		float angAcc = (float)(T / (2.43 / 10000000.0)) * (1.0 / 1000.0) * (1.0 / 1000.0);
+		float angAcc = 0.0;
+		if (horizontal) {
+			//float angAcc = (float)(T / (2.43 / 10000000.0)) * (1.0 / 120.0) * (1.0 / 120.0);
+			angAcc = (float)((T / 1000.0) / Iyy) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+		}
+		else if (spinning) {
+			//angAcc = (float)((T / 1000.0) / Ixx) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+			spinning2 = 1;
+			float T2 = calcFeedback();
+			angAcc = ((Izz * (T / 1000.0) + Ixz * (T2 / 1000.0)) / (Ixx * Izz - Ixz * Ixz)) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+		}
+		else if (vertical) {
+			//angAcc = (float)((T / 1000.0) / Izz) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+			vertical2 = 1;
+			float T2 = calcFeedback();
+			if (isnan((Ixx * (T / 1000.0) + Ixz * (T2 / 1000.0)) / (Ixx * Izz - Ixz * Ixz)) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t))) {
+				printf("\nWhat the hell is going on");
+			}
+			angAcc = ((Ixx * (T / 1000.0) + Ixz * (T2 / 1000.0)) / (Ixx * Izz - Ixz * Ixz)) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+			//angAcc = that thingy
+		}
+		else {
+			printf("\nWhat kind of stimulus is this?");
+		}
+		if (isnan(angAcc)) {
+			angAcc = 0.0;
+		}
 		//CLangle += (float)((angAcc / 2) * (read * (1.0 / 10000.0) * 120.0) * (read * (1.0 / 10000.0) * 120.0) + angVel * (read * (1.0 / 10000.0) * 120.0)) * (180.0 / PI);
-		CLangle += (float)((angAcc / 2) * (read * (1.0 / 10000.0) * 1000.0) * (read * (1.0 / 10000.0) * 1000.0) + angVel * (read * (1.0 / 10000.0) * 1000.0)) * (180.0 / PI);
+		//CLangle += (float)((angAcc / 2.0) * (read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) * (read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) + angVel * (read * (1.0 / 10000.0) * (1000.0 / (float)d_t))) * (180.0 / PI);
+		if (isnan(CLangle + (float)angVel * ((float)read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) * (180.0 / PI))) {
+			printf("\nWhat the hell");
+		}
+		CLangle += (float)angVel * ((float)read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) * (180.0 / PI);
 		//angVel += (float)angAcc * (read * (1.0 / 10000.0) * 120.0);
-		angVel += (float)angAcc * (read * (1.0 / 10000.0) * 1000.0);
-		printf("\n%f", T);
+		if (isnan(angVel + (float)angAcc * ((float)read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) / 1000.0)) {
+			printf("\nWhat the hell again");
+		}
+		angVel += (float)angAcc * ((float)read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) / 1000.0;
+		printf("\nRead is %i", read);
+		printf("\nAngular Acceleration is %f", angAcc);
+		printf("\nAngular Velocity is %f", angVel);
+		printf("\nCL angle is %f", CLangle);
+		//printf("\n%f", Iyy);
+		if (centering) {
+			//printf("\n%f", lx);
+			centering = 0;
+			angAcc = 0.0;
+			angVel = 0.0;
+			CLangle = 0.0;
+		}
 	}
 
 	//float OLangle = 0;
@@ -909,6 +997,7 @@ void display1(void) {
 	}
 
 	if (closedLoop) {
+		gluLookAt(0, 0, 0, 0, 0, -1, 0, 1, 0);
 		glRotatef(OLangle + CLangle, horizontal, vertical, spinning);
 		//printf("\n%f", CLangle);
 	}
@@ -945,18 +1034,39 @@ void display2(void) {
 	//glTranslatef(0, 0, -10);
 	//glTranslatef(0, 0, -1000);
 
+	/*
 	if (closedLoop) {
+		
 		float T = calcFeedback();
 		if (abs(T) < threshold) {
 			T = 0;
 		}
-		//float angAcc = (float)(T / (2.43 / 10000000.0)) * (1.0 / 120.0) * (1.0 / 120.0);
-		float angAcc = (float)(T / (2.43 / 10000000.0)) * (1.0 / 1000.0) * (1.0 / 1000.0);
+		float angAcc;
+		if (horizontal) {
+			//float angAcc = (float)(T / (2.43 / 10000000.0)) * (1.0 / 120.0) * (1.0 / 120.0);
+			angAcc = (float)((T / 1000.0) / Iyy) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+		}
+		else if (spinning) {
+			//angAcc = (float)((T / 1000.0) / Ixx) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+			spinning2 = 1;
+			float T2 = calcFeedback();
+			angAcc = ((Izz * (T / 1000.0) + Ixz * (T2 / 1000.0)) / (Ixx * Izz - Ixz * Ixz)) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+		}
+		else if (vertical) {
+			//angAcc = (float)((T / 1000.0) / Izz) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+			vertical2 = 1;
+			float T2 = calcFeedback();
+			angAcc = ((Ixx * (T / 1000.0) + Ixz * (T2 / 1000.0)) / (Ixx * Izz - Ixz * Ixz)) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+			//angAcc = that thingy
+		}
+		else {
+			printf("\nWhat kind of stimulus is this?");
+		}
 		//CLangle += (float)((angAcc / 2) * (read * (1.0 / 10000.0) * 120.0) * (read * (1.0 / 10000.0) * 120.0) + angVel * (read * (1.0 / 10000.0) * 120.0)) * (180.0 / PI);
-		CLangle += (float)((angAcc / 2) * (read * (1.0 / 10000.0) * 1000.0) * (read * (1.0 / 10000.0) * 1000.0) + angVel * (read * (1.0 / 10000.0) * 1000.0)) * (180.0 / PI);
+		//CLangle += (float)((angAcc / 2) * (read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) * (read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) + angVel * (read * (1.0 / 10000.0) * (1000.0 / (float)d_t))) * (180.0 / PI);
 		//angVel += (float)angAcc * (read * (1.0 / 10000.0) * 120.0);
-		angVel += (float)angAcc * (read * (1.0 / 10000.0) * 1000.0);
-		printf("\n%f", T);
+		//angVel += (float)angAcc * (read * (1.0 / 10000.0) * (1000.0 / (float)d_t));
+		//printf("\n%f", T);
 	}
 
 	//float OLangle = 0;
@@ -968,8 +1078,10 @@ void display2(void) {
 		OLangle = (oscillationAmp) * (-1) * cosf(((float)2 * angle * PI / delay)) + (oscillationAmp);
 		//glRotatef((180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0, horizontal, vertical, spinning);
 	}
+	//*/
 
 	if (closedLoop) {
+		gluLookAt(0, 0, 0, 1, 0, 0, 0, 1, 0);
 		glRotatef(OLangle + CLangle, horizontal, vertical, spinning);
 		//printf("\n%f", CLangle);
 	}
@@ -988,7 +1100,7 @@ void display2(void) {
 
 
 	glutSwapBuffers();
-	wglSwapIntervalEXT(-1);
+	//wglSwapIntervalEXT(-1);
 
 	//angle++; //Not really the angle, more like the time step incrementing thing.
 }
@@ -1008,18 +1120,38 @@ void display3(void) {
 	//glTranslatef(0, 0, -10);
 	//glTranslatef(0, 0, -1000);
 
+	/*
 	if (closedLoop) {
 		float T = calcFeedback();
 		if (abs(T) < threshold) {
 			T = 0;
 		}
-		//float angAcc = (float)(T / (2.43 / 10000000.0)) * (1.0 / 120.0) * (1.0 / 120.0);
-		float angAcc = (float)(T / (2.43 / 10000000.0)) * (1.0 / 1000.0) * (1.0 / 1000.0);
+		float angAcc;
+		if (horizontal) {
+			//float angAcc = (float)(T / (2.43 / 10000000.0)) * (1.0 / 120.0) * (1.0 / 120.0);
+			angAcc = (float)((T / 1000.0) / Iyy) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+		}
+		else if (spinning) {
+			//angAcc = (float)((T / 1000.0) / Ixx) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+			spinning2 = 1;
+			float T2 = calcFeedback();
+			angAcc = ((Izz * (T / 1000.0) + Ixz * (T2 / 1000.0)) / (Ixx * Izz - Ixz * Ixz)) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+		}
+		else if (vertical) {
+			//angAcc = (float)((T / 1000.0) / Izz) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+			vertical2 = 1;
+			float T2 = calcFeedback();
+			angAcc = ((Ixx * (T / 1000.0) + Ixz * (T2 / 1000.0)) / (Ixx * Izz - Ixz * Ixz)) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+			//angAcc = that thingy
+		}
+		else {
+			printf("\nWhat kind of stimulus is this?");
+		}
 		//CLangle += (float)((angAcc / 2) * (read * (1.0 / 10000.0) * 120.0) * (read * (1.0 / 10000.0) * 120.0) + angVel * (read * (1.0 / 10000.0) * 120.0)) * (180.0 / PI);
-		CLangle += (float)((angAcc / 2) * (read * (1.0 / 10000.0) * 1000.0) * (read * (1.0 / 10000.0) * 1000.0) + angVel * (read * (1.0 / 10000.0) * 1000.0)) * (180.0 / PI);
+		//CLangle += (float)((angAcc / 2) * (read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) * (read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) + angVel * (read * (1.0 / 10000.0) * (1000.0 / (float)d_t))) * (180.0 / PI);
 		//angVel += (float)angAcc * (read * (1.0 / 10000.0) * 120.0);
-		angVel += (float)angAcc * (read * (1.0 / 10000.0) * 1000.0);
-		printf("\n%f", T);
+		//angVel += (float)angAcc * (read * (1.0 / 10000.0) * (1000.0 / (float)d_t));
+		//printf("\n%f", T);
 	}
 
 	//float OLangle = 0;
@@ -1031,8 +1163,10 @@ void display3(void) {
 		OLangle = (oscillationAmp) * (-1) * cosf(((float)2 * angle * PI / delay)) + (oscillationAmp);
 		//glRotatef((180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0, horizontal, vertical, spinning);
 	}
+	//*/
 
 	if (closedLoop) {
+		gluLookAt(0, 0, 0, -1, 0, 0, 0, 1, 0);
 		glRotatef(OLangle + CLangle, horizontal, vertical, spinning);
 		//printf("\n%f", CLangle);
 	}
@@ -1051,7 +1185,7 @@ void display3(void) {
 
 
 	glutSwapBuffers();
-	wglSwapIntervalEXT(-1);
+	//wglSwapIntervalEXT(-1);
 
 	//angle++; //Not really the angle, more like the time step incrementing thing.
 }
@@ -1145,14 +1279,14 @@ void letter_pressed(unsigned char key, int x, int y) {
 		single = viewingAngle;
 		isSingle = 1;
 		//CreateSphere(R, 0, 0, 0);
-		DrawSphere(5.0);
+		DrawSphere(longitudinalSpacing);
 		glutPostRedisplay();
 		break;
 	case 50: //2 will make stimulus 5-bar grate
 		single = 360;
 		isSingle = 0;
 		//CreateSphere(R, 0, 0, 0);
-		DrawSphere(5.0);
+		DrawSphere(longitudinalSpacing);
 		glutPostRedisplay();
 		break;
 	case 86: //V will request viewing angle
@@ -1162,7 +1296,7 @@ void letter_pressed(unsigned char key, int x, int y) {
 		//barwidth = (float) 0.307975 * tanf(degree * PI / (2.0 * 180.0)) * 1342.281879;
 		printf("%f", viewingAngle);
 		//CreateSphere(R, 0, 0, 0);
-		DrawSphere(5.0);
+		DrawSphere(longitudinalSpacing);
 		glutPostRedisplay();
 		break;
 	case 118: //v will request viewing angle
@@ -1172,7 +1306,7 @@ void letter_pressed(unsigned char key, int x, int y) {
 		//barwidth = (float) 0.307975 * tanf(degree * PI / (2.0 * 180.0)) * 1342.281879;
 		printf("%f", viewingAngle);
 		//CreateSphere(R, 0, 0, 0);
-		DrawSphere(5.0);
+		DrawSphere(longitudinalSpacing);
 		glutPostRedisplay();
 		break;
 	case 70: //F will request frequency
@@ -1306,7 +1440,7 @@ void init(void) {
 
 	//CreateSphere(70, 0, 0, 0);
 	//CreateSphere(R, 0, 0, 0);
-	DrawSphere(5.0);
+	DrawSphere(longitudinalSpacing);
 
 	glEnableClientState(GL_NORMAL_ARRAY);
 	glEnableClientState(GL_COLOR_ARRAY);
@@ -1374,13 +1508,13 @@ int main(int argc, char **argv) {
 	//PFNWGLGETSWAPINTERVALEXTPROC    wglGetSwapIntervalEXT = NULL;
 	float tempWeight;
 	//printf("Press left or right arrows to move our rectangle\n");
-	/*
+	///*
 	printf("Enter the weight of the moth in grams: ");
 	scanf("%f", &tempWeight);
 	weight = tempWeight / 1000;
 	printf("Please wait about 20 seconds\n");
 	//*/
-	printf("Please wait about 20 seconds\n");
+	//printf("Please wait about 20 seconds\n");
 	/*
 	** Add the closed-loop stuff here.
 	*/
@@ -1411,17 +1545,17 @@ int main(int argc, char **argv) {
 	printf("\ngot passed through analog");
 	printf("\n%f\n", data[1199999]);
 	for (int i = 0; i < read; i++) {
-	if (queueit >= 200100) {
-	queueit = 0;
-	}
-	currai0[queueit] = data[i];
-	currai1[queueit] = data[i + read];
-	currai2[queueit] = data[i + (read * 2)];
-	currai3[queueit] = data[i + (read * 3)];
-	currai4[queueit] = data[i + (read * 4)];
-	currai5[queueit] = data[i + (read * 5)];
-	currai6[queueit] = (int64)data[i + (read * 6)]; //our trigger buttom. Must be floored to 0 or 1.
-	queueit++;
+		if (queueit >= 200100) {
+			queueit = 0;
+		}
+		currai0[queueit] = data[i];
+		currai1[queueit] = data[i + read];
+		currai2[queueit] = data[i + (read * 2)];
+		currai3[queueit] = data[i + (read * 3)];
+		currai4[queueit] = data[i + (read * 4)];
+		currai5[queueit] = data[i + (read * 5)];
+		currai6[queueit] = (int64)data[i + (read * 6)]; //our trigger buttom. Must be floored to 0 or 1.
+		queueit++;
 	}
 	bias0 = biasing(currai0);
 	bias1 = biasing(currai1);
