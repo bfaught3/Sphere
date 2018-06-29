@@ -1033,16 +1033,18 @@ void display1(void) {
 			//angAcc = (float)((T / 1000.0) / Ixx) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
 			spinning2 = 1;
 			float T2 = calcFeedback();
-			angAcc = ((Izz * (T / 1000.0) + Ixz * (T2 / 1000.0)) / (Ixx * Izz - Ixz * Ixz)) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+			//angAcc = ((Izz * (T / 1000.0) + Ixz * (T2 / 1000.0)) / (Ixx * Izz - Ixz * Ixz)) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+			angAcc = ((T / 1000.0) / Ixx) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
 		}
 		else if (vertical) {
 			//angAcc = (float)((T / 1000.0) / Izz) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
-			vertical2 = 1;
-			float T2 = calcFeedback();
-			if (isnan((Ixx * (T / 1000.0) + Ixz * (T2 / 1000.0)) / (Ixx * Izz - Ixz * Ixz)) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t))) {
-				printf("\nWhat the hell is going on");
-			}
-			angAcc = ((Ixx * (T / 1000.0) + Ixz * (T2 / 1000.0)) / (Ixx * Izz - Ixz * Ixz)) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+			//vertical2 = 1;
+			//float T2 = calcFeedback();
+			//if (isnan((Ixx * (T / 1000.0) + Ixz * (T2 / 1000.0)) / (Ixx * Izz - Ixz * Ixz)) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t))) {
+				//printf("\nWhat the hell is going on");
+			//}
+			//angAcc = ((Ixx * (T / 1000.0) + Ixz * (T2 / 1000.0)) / (Ixx * Izz - Ixz * Ixz)) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+			angAcc = ((T / 1000.0) / Izz) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
 			//angAcc = that thingy
 		}
 		else {
@@ -1062,10 +1064,13 @@ void display1(void) {
 			printf("\nWhat the hell again");
 		}
 		angVel += (float)angAcc * ((float)read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) / 1000.0;
+		//angVel += (float)angAcc * ((float)read * (1.0 / 10000.0) * (1000.0 / (float)d_t));
+		/*
 		printf("\nRead is %i", read);
 		printf("\nAngular Acceleration is %f", angAcc);
 		printf("\nAngular Velocity is %f", angVel);
 		printf("\nCL angle is %f", CLangle);
+		//*/
 		//printf("\n%f", Iyy);
 		if (centering) {
 			//printf("\n%f", lx);
