@@ -1063,8 +1063,8 @@ void display1(void) {
 		if (isnan(angVel + (float)angAcc * ((float)read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) / 1000.0)) {
 			printf("\nWhat the hell again");
 		}
-		angVel += (float)angAcc * ((float)read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) / 1000.0;
-		//angVel += (float)angAcc * ((float)read * (1.0 / 10000.0) * (1000.0 / (float)d_t));
+		//angVel += (float)angAcc * ((float)read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) / 1000.0;
+		angVel = (float)angAcc;
 		/*
 		printf("\nRead is %i", read);
 		printf("\nAngular Acceleration is %f", angAcc);
