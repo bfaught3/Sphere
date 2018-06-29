@@ -490,6 +490,8 @@ void DisplaySphere(double R, GLuint texture, int ls, bool color) {
 	glEnd();
 	*/
 
+	int lsVertexCount = 2 * (360 / 6 / 1) * ((360 / 6) + 1) * 9;
+
 	glEnableClientState(GL_NORMAL_ARRAY);
 	if (color) {
 		glEnableClientState(GL_COLOR_ARRAY);
@@ -792,6 +794,44 @@ vert(float theta, float phi, int i, bool color)
 }
 
 static void
+vert2(float theta, float phi)
+{
+	float r = 0.75f;
+	float x, y, z, nx, ny, nz;
+
+	nx = sin(DTOR * theta) * cos(DTOR * phi);
+	ny = sin(DTOR * phi);
+	nz = cos(DTOR * theta) * cos(DTOR * phi);
+	glNormal3f(nx, ny, nz);
+
+	x = r * sin(DTOR * theta) * cos(DTOR * phi);
+	y = r * sin(DTOR * phi);
+	//z = -ZTRANS + r * cos(DTOR * theta) * cos(DTOR * phi);
+	z = r * cos(DTOR * theta) * cos(DTOR * phi);
+	glVertex4f(x, y, z, 1.0);
+}
+
+static void
+DrawSphere2(float del)
+{
+	//glLoadIdentity();
+	float phi, phi2, theta;
+
+	glColor4f(1.0, 1.0, 1.0, 1.0);
+	for (phi = -90.0f; phi < 90.0f; phi += del) {
+		glBegin(GL_TRIANGLE_STRIP);
+
+		phi2 = phi + del;
+
+		for (theta = -90.0f; theta <= 90.0f; theta += del) {
+			vert2(theta, phi);
+			vert2(theta, phi2);
+		}
+		glEnd();
+	}
+}
+
+static void
 DrawSphere(float del, bool color)
 {
 	//glLoadIdentity();
@@ -865,7 +905,7 @@ void display(void) {
 	//glTranslatef(0, 0, -10);
 	//glTranslatef(0, 0, -1000);
 
-	/*
+	//*
 	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, -1, -1.0, DAQmx_Val_GroupByChannel, currentData, 1400700, &read, NULL));
 	goto Skip;
 
@@ -939,9 +979,10 @@ Skip:
 		fps_start = 0;
 	}
 	int delta_t = glutGet(GLUT_ELAPSED_TIME) - fps_start;
-	if (delta_t > 1000) {
+	if (delta_t >= 1000) {
 		//std::cout << double(delta_t) / double(fps_frames) << std::endl;
 		std::cout << double(fps_frames) << " FPS" << std::endl;
+		//std::cout << double(delta_t) << std::endl;
 		//std::cout << delta_t << std::endl;
 		fps_frames = 0;
 		fps_start = glutGet(GLUT_ELAPSED_TIME);
@@ -1075,7 +1116,7 @@ void display1(void) {
 
 	if (!clear) {
 		DisplaySphere(6, texture[0], longitudinalSpacing, 1);
-		//DrawSphere(5.0);
+		//DrawSphere2(5.0);
 	}
 
 
@@ -1346,7 +1387,7 @@ void init(void) {
 
 	glFrontFace(GL_CCW);
 
-	//glEnable(GL_CULL_FACE);
+	glEnable(GL_CULL_FACE);
 
 	//texture[0] = LoadTextureRAW(?earth.raw?);
 
@@ -1783,14 +1824,14 @@ int main(int argc, char **argv) {
 	weight = tempWeight / 1000;
 	printf("Please wait about 20 seconds\n");
 	//*/
-	//printf("Please wait about 20 seconds\n");
+	printf("Please wait about 20 seconds\n");
 	/*
 	** Add the closed-loop stuff here.
 	*/
 
 	// DAQmx analog voltage channel and timing parameters
 
-	/*
+	//*
 	DAQmxErrChk(DAQmxCreateTask("", &taskHandle));
 
 	// IMPORTANT
