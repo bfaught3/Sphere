@@ -42,7 +42,7 @@
 #include <time.h>       /* time_t, clock, CLOCKS_PER_SEC */
 #include <math.h>       /* sqrt */
 #include <iostream>
-#include <vector>
+//#include <vector>
 #include <fstream>
 #include <GLFW/glfw3.h>
 #include <stdio.h>
@@ -111,16 +111,30 @@ int32       read;
 float64     data[1400700];
 float64		currentData[1400700];
 /*
-float64		currai0[200100];
-float64		currai1[200100];
-float64		currai2[200100];
-float64		currai3[200100];
-float64		currai4[200100];
-float64		currai5[200100];
-int64		currai6[200100];
-float64		currxp[200100];
-float64		currxpcl[200100];	// closed loop
+float64*		currai0 = new float64[20010000];
+float64*		currai1 = new float64[20010000];
+float64*		currai2 = new float64[20010000];
+float64*		currai3 = new float64[20010000];
+float64*		currai4 = new float64[20010000];
+float64*		currai5 = new float64[20010000];
+int64*		currai6 = new int64[20010000];
+float64*		currxp = new float64[20010000];
+float64*		currxpcl = new float64[20010000];	// closed loop
 //*/
+
+///*
+float64		currai0[20010000];
+float64		currai1[20010000];
+float64		currai2[20010000];
+float64		currai3[20010000];
+float64		currai4[20010000];
+float64		currai5[20010000];
+int64		currai6[20010000];
+float64		currxp[20010000];
+float64		currxpcl[20010000];	// closed loop
+//*/
+
+/*
 std::vector<float64> currai0;
 std::vector<float64> currai1;
 std::vector<float64> currai2;
@@ -131,6 +145,7 @@ std::vector<int64> currai6;
 std::vector<float64> currai7;
 std::vector<float64> currxp;
 std::vector<float64> currxpcl;
+//*/
 int32		queueit = 0;
 float64		bias0, bias1, bias2, bias3, bias4, bias5;
 
@@ -261,24 +276,34 @@ void writeToFile() {
 
 	//if (fileP != NULL) {
 	if (1) {
-		//for (int i = 0; i < 200100; i++) {
 		int j;
+		if (continuousRecording || queueit < 200100) {
+			j = queueit;
+		}
+		else {
+			j = 200100;
+			//j = read;
+		}
+		for (int i = 0; i < j; i++) {
+		//int j;
+		/*
 		if (continuousRecording || currai0.size() < 200100) {
 			j = currai0.size();
 		}
 		else {
 			j = 200100;
 		}
-		for (int i = currai0.size() - j; i < currai0.size(); i++) {
-			//int helperQueue = queueit + i;
-			/*
-			if (helperQueue >= 200100) {
-				helperQueue -= 200100;
+		//*/
+		//for (int i = currai0.size() - j; i < currai0.size(); i++) {
+			int helperQueue = queueit + i - j;
+			///*
+			if (helperQueue >= 20010000 * 2) {
+				helperQueue -= 20010000 * 2;
 			}
 			//*/
 			//fprintf(fileP, "%f, %f, %f, %f, %f, %f, %f, %f, %lld\n", currxp[helperQueue], currxpcl[helperQueue], currai0[helperQueue], currai1[helperQueue], currai2[helperQueue], currai3[helperQueue], currai4[helperQueue], currai5[helperQueue], currai6[helperQueue]);
-			//outfile << currxp[helperQueue] << ", " << currxpcl[helperQueue] << ", " << currai0[helperQueue] << ", " << currai1[helperQueue] << ", " << currai2[helperQueue] << ", " << currai3[helperQueue] << ", " << currai4[helperQueue] << ", " << currai5[helperQueue] << ", " << currai6[helperQueue] << "\n";
-			outfile << currxp.at(i) << ", " << currxpcl.at(i) << ", " << currai0.at(i) << ", " << currai1.at(i) << ", " << currai2.at(i) << ", " << currai3.at(i) << ", " << currai4.at(i) << ", " << currai5.at(i) << ", " << currai6.at(i) << "\n";
+			outfile << currxp[helperQueue] << ", " << currxpcl[helperQueue] << ", " << currai0[helperQueue] << ", " << currai1[helperQueue] << ", " << currai2[helperQueue] << ", " << currai3[helperQueue] << ", " << currai4[helperQueue] << ", " << currai5[helperQueue] << ", " << currai6[helperQueue] << "\n";
+			//outfile << currxp.at(i) << ", " << currxpcl.at(i) << ", " << currai0.at(i) << ", " << currai1.at(i) << ", " << currai2.at(i) << ", " << currai3.at(i) << ", " << currai4.at(i) << ", " << currai5.at(i) << ", " << currai6.at(i) << "\n";
 		}
 		//fclose(fileP);
 		increment++;
@@ -337,7 +362,7 @@ float64 calcFeedback() {
 		int32 j = queueit - read + i;
 		if (spinning) { //If spinning, read from Ty
 			if (j < 0) {
-				avgai0 += currai4[j + 200100];
+				avgai0 += currai4[j + 20010000 * 2];
 			}
 			else {
 				avgai0 += currai4[j];
@@ -345,7 +370,7 @@ float64 calcFeedback() {
 		}
 		else if (horizontal) { //If horizontal, read from Tx
 			if (j < 0) {
-				avgai0 += currai3[j + 200100];
+				avgai0 += currai3[j + 20010000 * 2];
 			}
 			else {
 				avgai0 += currai3[j];
@@ -353,7 +378,7 @@ float64 calcFeedback() {
 		}
 		else if (vertical2) { //The second moment is Ty
 			if (j < 0) {
-				avgai0 += currai4[j + 200100];
+				avgai0 += currai4[j + 20010000 * 2];
 			}
 			else {
 				avgai0 += currai4[j];
@@ -362,7 +387,7 @@ float64 calcFeedback() {
 		}
 		else if (spinning2) { //The second moment is Tz
 			if (j < 0) {
-				avgai0 += currai5[j + 200100];
+				avgai0 += currai5[j + 20010000 * 2];
 			}
 			else {
 				avgai0 += currai5[j];
@@ -371,7 +396,7 @@ float64 calcFeedback() {
 		}
 		else { //If vertical, read from Tz
 			if (j < 0) {
-				avgai0 += currai5[j + 200100];
+				avgai0 += currai5[j + 20010000 * 2];
 			}
 			else {
 				avgai0 += currai5[j];
@@ -386,7 +411,7 @@ float64 calcFeedback() {
 	return -avgai0;		// This is negative because the force transducer is backwards.
 }
 
-/*
+///*
 float64 biasing(float64 *readArray) {
 	float64 avgai = 0;
 	int ignore = 0;
@@ -404,6 +429,7 @@ float64 biasing(float64 *readArray) {
 }
 //*/
 
+/*
 float64 biasing(std::vector<float64> readArray) {
 	float64 avgai = 0;
 	for (float64 n : readArray) {
@@ -412,6 +438,7 @@ float64 biasing(std::vector<float64> readArray) {
 	avgai = avgai / read;
 	return avgai;
 }
+//*/
 
 /*
 * Allows for the conversion of voltages into force and torque.
@@ -937,13 +964,13 @@ void display(void) {
 	glLoadIdentity();
 
 
-	//if (currai6[queueit - 1] == 0 && !written) {
-	if (currai6.size() > 0 && currai6[currai6.size() - 1] == 0 && !written) {
+	if (currai6[queueit - 1] == 0 && !written) {
+	//if (currai6.size() > 0 && currai6[currai6.size() - 1] == 0 && !written) {
 		writeToFile();
 		written = 1;
 	}
-	//if (currai6[queueit - 1] != 0) {
-	if (currai6.size() > 0 && currai6[currai6.size() - 1] != 0) {
+	if (currai6[queueit - 1] != 0) {
+	//if (currai6.size() > 0 && currai6[currai6.size() - 1] != 0) {
 		written = 0;
 	}
 
@@ -963,14 +990,14 @@ Error:
 Skip:
 
 	for (int i = 0; i < read; i++) {
-		if (queueit >= 200100) {
+		if (queueit >= 20010000 * 2) {
 			queueit = 0;
 		}
 		//printf("%f\n", currentData[i]);
 		float64 * tempData = matrixMult((currentData[i] - bias0), (currentData[i + read] - bias1), (currentData[i + (read * 2)] - bias2), (currentData[i + (read * 3)] - bias3), (currentData[i + (read * 4)] - bias4), (currentData[i + (read * 5)] - bias5));
+		///*
 		currai0[queueit] = tempData[0];
 		//printf("%f", tempData[0]);
-		/*
 		currai1[queueit] = tempData[1];
 		currai2[queueit] = tempData[2];
 		currai3[queueit] = tempData[3];
@@ -981,7 +1008,9 @@ Skip:
 		currxp[queueit] = OLangle;
 		//currxpcl[queueit] = tempxp - aggrlx;
 		currxpcl[queueit] = OLangle + CLangle;
-		*/
+		//*/
+		/*
+		currai0.push_back(tempData[0]);
 		currai1.push_back(tempData[1]);
 		currai2.push_back(tempData[2]);
 		currai3.push_back(tempData[3]);
@@ -992,6 +1021,7 @@ Skip:
 		currxp.push_back(OLangle);
 		//currxpcl[queueit] = tempxp - aggrlx;
 		currxpcl.push_back(OLangle + CLangle);
+		//*/
 		queueit++;
 	}
 	//*/
@@ -1618,6 +1648,17 @@ void letter_pressed(unsigned char key, int x, int y) {
 		centering = 1;
 		break;
 	case 27: // ESC to exit fullscreen
+		/*
+		free(currai0);
+		free(currai1);
+		free(currai2);
+		free(currai3);
+		free(currai4);
+		free(currai5);
+		free(currai6);
+		free(currxp);
+		free(currxpcl);
+		//*/
 		exit(0);
 		break;
 
@@ -1935,10 +1976,10 @@ int main(int argc, char **argv) {
 	printf("\ngot passed through analog");
 	printf("\n%f\n", data[1199999]);
 	for (int i = 0; i < read; i++) {
-		if (queueit >= 200100) {
+		if (queueit >= 20010000 * 2) {
 			queueit = 0;
 		}
-		/*
+		///*
 		currai0[queueit] = data[i];
 		currai1[queueit] = data[i + read];
 		currai2[queueit] = data[i + (read * 2)];
@@ -1946,8 +1987,9 @@ int main(int argc, char **argv) {
 		currai4[queueit] = data[i + (read * 4)];
 		currai5[queueit] = data[i + (read * 5)];
 		currai6[queueit] = (int64)data[i + (read * 6)]; //our trigger buttom. Must be floored to 0 or 1.
-		*/
+		//*/
 
+		/*
 		currai0.push_back(data[i]);
 		currai1.push_back(data[i + read]);
 		currai2.push_back(data[i + (read * 2)]);
@@ -1957,6 +1999,7 @@ int main(int argc, char **argv) {
 		currai6.push_back((int64)data[i + (read * 6)]); //our trigger buttom. Must be floored to 0 or 1.
 		currxp.push_back(0);
 		currxpcl.push_back(0);
+		//*/
 
 		queueit++;
 	}
@@ -1969,6 +2012,7 @@ int main(int argc, char **argv) {
 
 	writeToFile();
 
+	/*
 	currai0.clear();
 	currai1.clear();
 	currai2.clear();
@@ -1976,6 +2020,7 @@ int main(int argc, char **argv) {
 	currai4.clear();
 	currai5.clear();
 	currai6.clear();
+	//*/
 
 	//*/
 
