@@ -126,15 +126,17 @@ float64*		currxpcl = new float64[20010000];	// closed loop
 //*/
 
 ///*
-float		currai0[24000100];
-float		currai1[24000100];
-float		currai2[24000100];
-float		currai3[24000100];
-float		currai4[24000100];
-float		currai5[24000100];
-int		currai6[24000100]; //trigger
-float		currxp[24000100];
-float		currxpcl[24000100];	// closed loop
+const int maxElements = 24000100;
+int countdown = maxElements;
+float		currai0[maxElements];
+float		currai1[maxElements];
+float		currai2[maxElements];
+float		currai3[maxElements];
+float		currai4[maxElements];
+float		currai5[maxElements];
+float		currai6[maxElements]; //trigger that we're going to normalize to 1 or 0 and multiply by the gain
+float		currxp[maxElements];
+float		currxpcl[maxElements];	// closed loop
 //float		currgain[24000100]; // current gain value
 								//*/
 
@@ -301,8 +303,8 @@ void writeToFile() {
 			//for (int i = currai0.size() - j; i < currai0.size(); i++) {
 			int helperQueue = queueit + i - j;
 			///*
-			if (helperQueue >= 24000100) {
-				helperQueue -= 24000100;
+			if (helperQueue >= maxElements) {
+				helperQueue -= maxElements;
 			}
 			//*/
 			//fprintf(fileP, "%f, %f, %f, %f, %f, %f, %f, %f, %lld\n", currxp[helperQueue], currxpcl[helperQueue], currai0[helperQueue], currai1[helperQueue], currai2[helperQueue], currai3[helperQueue], currai4[helperQueue], currai5[helperQueue], currai6[helperQueue]);
@@ -350,7 +352,7 @@ void writeToFile() {
 		}
 		//printf("\nFreq = %f Hz, %s, %s, %f deg", 120.0 / delay, gs, oc, viewingAngle);
 		//printf("\nFreq = %f Hz, %s, %s, %f deg", 1000.0 / delay, gs, oc, viewingAngle);
-		printf("\n%s stimulus, Freq = %f %s, %s, %s, %f deg", rpy, dhv, dh, gs, oc, viewingAngle);
+		printf("\n%s stimulus, Freq = %f %s, %s, %s, %f deg, Gain = %f", rpy, dhv, dh, gs, oc, viewingAngle, gain);
 	}
 	else {
 		printf("\nOur file cannot be written to");
@@ -367,7 +369,7 @@ float64 calcFeedback() {
 		int32 j = queueit - read + i;
 		if (spinning) { //If spinning, read from Ty
 			if (j < 0) {
-				avgai0 += currai4[j + 24000100];
+				avgai0 += currai4[j + maxElements];
 			}
 			else {
 				avgai0 += currai4[j];
@@ -375,7 +377,7 @@ float64 calcFeedback() {
 		}
 		else if (horizontal) { //If horizontal, read from Tx
 			if (j < 0) {
-				avgai0 += currai3[j + 24000100];
+				avgai0 += currai3[j + maxElements];
 			}
 			else {
 				avgai0 += currai3[j];
@@ -383,7 +385,7 @@ float64 calcFeedback() {
 		}
 		else if (vertical2) { //The second moment is Ty
 			if (j < 0) {
-				avgai0 += currai4[j + 24000100];
+				avgai0 += currai4[j + maxElements];
 			}
 			else {
 				avgai0 += currai4[j];
@@ -392,7 +394,7 @@ float64 calcFeedback() {
 		}
 		else if (spinning2) { //The second moment is Tz
 			if (j < 0) {
-				avgai0 += currai5[j + 24000100];
+				avgai0 += currai5[j + maxElements];
 			}
 			else {
 				avgai0 += currai5[j];
@@ -401,10 +403,10 @@ float64 calcFeedback() {
 		}
 		else { //If vertical, read from Tz
 			if (j < 0) {
-				avgai0 += currai5[j + 24000100];
+				avgai0 += -currai5[j + maxElements];
 			}
 			else {
-				avgai0 += currai5[j];
+				avgai0 += -currai5[j];
 			}
 		}
 	}
@@ -994,8 +996,9 @@ Error:
 
 Skip:
 
+	countdown -= read;
 	for (int i = 0; i < read; i++) {
-		if (queueit >= 24000100) {
+		if (queueit >= maxElements) {
 			queueit = 0;
 		}
 		//printf("%f\n", currentData[i]);
@@ -1008,11 +1011,15 @@ Skip:
 		currai3[queueit] = tempData[3];
 		currai4[queueit] = tempData[4];
 		currai5[queueit] = tempData[5];
-		currai6[queueit] = (int64)currentData[i + (read * 6)];
+		//currai6[queueit] = (int64)currentData[i + (read * 6)];
+		currai6[queueit] = (int)currentData[i + (read * 6)];
+		if (currai6[queueit] != 0) {
+			currai6[queueit] = (float)currai6[queueit] * gain / ((float)currai6[queueit]); //We're basically turning this into a measure of the gain.
+		}
 		//currxp[queueit] = tempxp;
-		currxp[queueit] = OLangle;
+		currxp[queueit] = fmod(OLangle,360.0);
 		//currxpcl[queueit] = tempxp - aggrlx;
-		currxpcl[queueit] = OLangle + CLangle;
+		currxpcl[queueit] = fmod(OLangle + CLangle,360.0);
 		//currgain[queueit] = gain;
 		//*/
 		/*
@@ -1075,6 +1082,8 @@ Skip:
 	if (delta_t >= 1000) {
 		//std::cout << double(delta_t) / double(fps_frames) << std::endl;
 		std::cout << double(fps_frames) << " FPS" << std::endl;
+		std::cout << countdown << " elements remaining" << std::endl;
+		std::cout << "Approximately " << double(countdown) / (600000.0) << " minutes remaining." << std::endl;
 		//std::cout << double(delta_t) << std::endl;
 		//std::cout << delta_t << std::endl;
 		fps_frames = 0;
@@ -1173,6 +1182,8 @@ void display1(void) {
 			angAcc = 0.0;
 			angVel = 0.0;
 			CLangle = 0.0;
+			angle = 0;
+			printf("\nCentering");
 		}
 	}
 
@@ -2005,7 +2016,7 @@ int main(int argc, char **argv) {
 	printf("\ngot passed through analog");
 	printf("\n%f\n", data[1199999]);
 	for (int i = 0; i < read; i++) {
-		if (queueit >= 24000100) {
+		if (queueit >= maxElements) {
 			queueit = 0;
 		}
 		///*
@@ -2015,7 +2026,11 @@ int main(int argc, char **argv) {
 		currai3[queueit] = data[i + (read * 3)];
 		currai4[queueit] = data[i + (read * 4)];
 		currai5[queueit] = data[i + (read * 5)];
-		currai6[queueit] = (int64)data[i + (read * 6)]; //our trigger buttom. Must be floored to 0 or 1.
+		//currai6[queueit] = (int64)data[i + (read * 6)]; //our trigger buttom. Must be floored to 0 or 1.
+		currai6[queueit] = (int)data[i + (read * 6)];
+		if (currai6[queueit] != 0) {
+			currai6[queueit] = (float)currai6[queueit] * gain / ((float)currai6[queueit]); //We're basically turning this into a measure of the gain.
+		}
 														//*/
 
 														/*
