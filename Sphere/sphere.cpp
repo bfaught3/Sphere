@@ -60,6 +60,7 @@ double angle = 0;
 bool clear;
 int yp;
 int centering = 0;
+bool centered = 0;
 float viewingAngle = 10;
 //float delay = 1200; //0.1 Hz
 float delay = 10000.0; //0.1 Hz
@@ -76,7 +77,9 @@ bool isSingle = 0;
 float weight = 1; // in kg
 float length = 1; // in m
 float mothWidth = 1; // in m
-float gain = 1; // This is the gain that we'll be changing.
+float gains[5] = { 0.5, 1, 1.5, 2, 2.5 };
+int gainIt = 1;
+float gain = gains[gainIt]; // This is the gain that we'll be changing.
 int increment = 0;
 float CLangle = 0;
 float angVel = 0;
@@ -971,7 +974,7 @@ void display(void) {
 	glLoadIdentity();
 
 
-	if (currai6[queueit - 1] == 0 && !written) {
+	if (currai6[queueit - 1] == 0 && !written && !centering && !centered) {
 		//if (currai6.size() > 0 && currai6[currai6.size() - 1] == 0 && !written) {
 		writeToFile();
 		written = 1;
@@ -980,6 +983,7 @@ void display(void) {
 		//if (currai6.size() > 0 && currai6[currai6.size() - 1] != 0) {
 		written = 0;
 	}
+	centered = 0;
 
 	//glTranslatef(0, 0, -10);
 	//glTranslatef(0, 0, -1000);
@@ -1013,6 +1017,9 @@ Skip:
 		currai5[queueit] = tempData[5];
 		//currai6[queueit] = (int64)currentData[i + (read * 6)];
 		currai6[queueit] = (int)currentData[i + (read * 6)];
+		if (centering) {
+			currai6[queueit] = 0;
+		}
 		if (currai6[queueit] != 0) {
 			currai6[queueit] = (float)currai6[queueit] * gain / ((float)currai6[queueit]); //We're basically turning this into a measure of the gain.
 		}
@@ -1178,7 +1185,7 @@ void display1(void) {
 		//printf("\n%f", Iyy);
 		if (centering) {
 			//printf("\n%f", lx);
-			centering = 0;
+			//centering = 0;
 			angAcc = 0.0;
 			angVel = 0.0;
 			CLangle = 0.0;
@@ -1662,10 +1669,14 @@ void letter_pressed(unsigned char key, int x, int y) {
 		glutPostRedisplay();
 		break;
 	case 99: //c
-		centering = 1;
+		//centering = 1;
+		centering = !centering;
+		centered = 1; //This will be changed to 0 after the check for trigger == 0.
 		break;
 	case 67: //C
-		centering = 1;
+		//centering = 1;
+		centering = !centering;
+		centered = 1;
 		break;
 	case 27: // ESC to exit fullscreen
 			 /*
@@ -1802,13 +1813,13 @@ void letter_pressed(unsigned char key, int x, int y) {
 	case 79: //O will make open-loop
 		printf("\nNow in open-loop.");
 		closedLoop = 0;
-		centering = 1;
+		//centering = 1;
 		glutPostRedisplay();
 		break;
 	case 111: //o will make open-loop
 		printf("\nNow in open-loop.");
 		closedLoop = 0;
-		centering = 1;
+		//centering = 1;
 		glutPostRedisplay();
 		break;
 	case 80: //P will make closed-loop
@@ -1915,6 +1926,22 @@ void letter_pressed(unsigned char key, int x, int y) {
 		printf("\nInput gain: ");
 		scanf("%f", &tempGain);
 		gain = tempGain;
+		glutPostRedisplay();
+		break;
+	case 45: //- Will lessen gain
+		if (gainIt > 0) {
+			gainIt--;
+			gain = gains[gainIt];
+		}
+		printf("\nGain is now %f", gain);
+		glutPostRedisplay();
+		break;
+	case 61: //= will enlarge bar
+		if (gainIt < 4) {
+			gainIt++;
+			gain = gains[gainIt];
+		}
+		printf("\nGain is now %f", gain);
 		glutPostRedisplay();
 		break;
 	}
