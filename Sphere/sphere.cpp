@@ -1024,9 +1024,10 @@ Skip:
 			currai6[queueit] = (float)currai6[queueit] * gain / ((float)currai6[queueit]); //We're basically turning this into a measure of the gain.
 		}
 		//currxp[queueit] = tempxp;
-		currxp[queueit] = fmod(OLangle,360.0);
+		//currxp[queueit] = fmod(OLangle,360.0);
+		currxp[queueit] = OLangle;
 		//currxpcl[queueit] = tempxp - aggrlx;
-		currxpcl[queueit] = fmod(OLangle + CLangle,360.0);
+		currxpcl[queueit] = OLangle + CLangle;
 		//currgain[queueit] = gain;
 		//*/
 		/*
