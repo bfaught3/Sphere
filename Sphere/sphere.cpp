@@ -70,6 +70,7 @@ bool closedLoop = 0;
 bool horizontal = 0;
 bool spinning = 0;
 bool vertical = 1;
+bool locust = 0; //The locust stimuli
 const float R = 584.6207004;
 int single = 360;
 bool isSingle = 0;
@@ -1184,6 +1185,16 @@ void display1(void) {
 		printf("\nCL angle is %f", CLangle);
 		//*/
 		//printf("\n%f", Iyy);
+		if (locust) {
+			CLangle = -45.0 * (-angVel / driftVel);
+			if (CLangle > 0.0) {
+				CLangle = 0.0;
+			}
+			else if (CLangle < -90.0) {
+				CLangle = -90.0;
+			}
+		}
+
 		if (centering) {
 			//printf("\n%f", lx);
 			//centering = 0;
@@ -1206,6 +1217,9 @@ void display1(void) {
 		if (whiteNoiseIt >= 5100) {
 			whiteNoiseIt = 0;
 		}
+	}
+	else if (locust) {
+		OLangle = 45.0 - 2 * viewingAngle;
 	}
 	else {
 		OLangle = (oscillationAmp) * (-1) * cosf(((float)2 * angle * PI / delay)) + (oscillationAmp);
@@ -1780,6 +1794,7 @@ void letter_pressed(unsigned char key, int x, int y) {
 		delay = 1000.0 / frequency;
 		drifting = 0;
 		isWhiteNoise = 0;
+		locust = 0;
 		glutPostRedisplay();
 		break;
 	case 102: //f will request frequency
@@ -1789,6 +1804,7 @@ void letter_pressed(unsigned char key, int x, int y) {
 		delay = 1000.0 / frequency;
 		drifting = 0;
 		isWhiteNoise = 0;
+		locust = 0;
 		glutPostRedisplay();
 		break;
 	case 68: //D will request driftDeg
@@ -1799,6 +1815,7 @@ void letter_pressed(unsigned char key, int x, int y) {
 		driftVel = driftDeg / 1000.0;
 		drifting = 1;
 		isWhiteNoise = 0;
+		locust = 0;
 		glutPostRedisplay();
 		break;
 	case 100: //d will request driftDeg
@@ -1809,6 +1826,7 @@ void letter_pressed(unsigned char key, int x, int y) {
 		driftVel = driftDeg / 1000.0;
 		drifting = 1;
 		isWhiteNoise = 0;
+		locust = 0;
 		glutPostRedisplay();
 		break;
 	case 79: //O will make open-loop
@@ -1943,6 +1961,28 @@ void letter_pressed(unsigned char key, int x, int y) {
 			gain = gains[gainIt];
 		}
 		printf("\nGain is now %f", gain);
+		glutPostRedisplay();
+		break;
+	case 84: //T will start the locust stimuli
+		printf("\nInput drift velocity for locust stimuli in degrees/sec: ");
+		scanf("%f", &driftDeg);
+		//driftVel = 2.0*PI*0.307975*(driftDeg / 360.0)*1342.281879*(1.0 / 120.0);
+		//driftVel = driftDeg / 120.0;
+		driftVel = driftDeg / 1000.0;
+		locust = 1;
+		isWhiteNoise = 0;
+		drifting = 0;
+		glutPostRedisplay();
+		break;
+	case 116: //t will start the locust stimuli
+		printf("\nInput drift velocity for locust stimuli in degrees/sec: ");
+		scanf("%f", &driftDeg);
+		//driftVel = 2.0*PI*0.307975*(driftDeg / 360.0)*1342.281879*(1.0 / 120.0);
+		//driftVel = driftDeg / 120.0;
+		driftVel = driftDeg / 1000.0;
+		locust = 1;
+		isWhiteNoise = 0;
+		drifting = 0;
 		glutPostRedisplay();
 		break;
 	}
