@@ -1185,6 +1185,8 @@ void display1(void) {
 		printf("\nCL angle is %f", CLangle);
 		//*/
 		//printf("\n%f", Iyy);
+
+		/*
 		if (locust) {
 			CLangle = -45.0 * (-angVel / driftVel);
 			if (CLangle > 0.0) {
@@ -1194,13 +1196,15 @@ void display1(void) {
 				CLangle = -90.0;
 			}
 		}
+		//*/
 
 		if (centering) {
 			//printf("\n%f", lx);
 			//centering = 0;
 			angAcc = 0.0;
 			angVel = 0.0;
-			CLangle = 0.0;
+			//CLangle = 0.0;
+			CLangle = -2 * viewingAngle;
 			angle = 0;
 			printf("\nCentering");
 		}
@@ -1218,9 +1222,22 @@ void display1(void) {
 			whiteNoiseIt = 0;
 		}
 	}
+	///*
 	else if (locust) {
-		OLangle = 45.0 - 2 * viewingAngle;
+		//OLangle = 45.0 - 2 * viewingAngle;
+		OLangle = driftVel * angle;
+		if (OLangle + CLangle > 45.0 - 2 * viewingAngle) {
+			OLangle = 45.0 - 2 * viewingAngle;
+			CLangle = 0.0;
+			angle = OLangle / driftVel;
+		}
+		else if (OLangle + CLangle < -45.0 - 2 * viewingAngle) {
+			OLangle = -45.0 - 2 * viewingAngle;
+			CLangle = 0.0;
+			angle = OLangle / driftVel;
+		}
 	}
+	//*/
 	else {
 		OLangle = (oscillationAmp) * (-1) * cosf(((float)2 * angle * PI / delay)) + (oscillationAmp);
 		//glRotatef((180) * (-1) * cosf(((float)2 * angle * PI / delay)) + 180.0, horizontal, vertical, spinning);
