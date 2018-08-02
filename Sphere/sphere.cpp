@@ -131,6 +131,8 @@ float64*		currxpcl = new float64[20010000];	// closed loop
 
 ///*
 const int maxElements = 24000100;
+float64 sampleRate = 10000.0;
+int window = (int)(floorf(sampleRate / 60) + 1) * 2;
 int countdown = maxElements;
 float		currai0[maxElements];
 float		currai1[maxElements];
@@ -369,8 +371,10 @@ void writeToFile() {
 **/
 float64 calcFeedback() {
 	float64 avgai0 = 0;
-	for (int i = 0; i < read; i++) {
-		int32 j = queueit - read + i;
+	//for (int i = 0; i < read; i++) {
+	for (int i = 0; i < window; i++) {
+		//int32 j = queueit - read + i;
+		int32 j = queueit - window + i;
 		if (spinning) { //If spinning, read from Ty
 			if (j < 0) {
 				avgai0 += currai4[j + maxElements];
@@ -414,16 +418,19 @@ float64 calcFeedback() {
 			}
 		}
 	}
-	if (isnan(avgai0 / read)) {
-		printf("\nWhy the hell is read an int32");
+	//if (isnan(avgai0 / read)) {
+	if (isnan(avgai0 / window)) {
+		//printf("\nWhy the hell is read an int32");
+		printf("\nWhy the hell is window an int32");
 	}
-	avgai0 = avgai0 / read;
+	//avgai0 = avgai0 / read;
+	avgai0 = avgai0 / window;
 
 	return -avgai0;		// This is negative because the force transducer is backwards.
 }
 
 ///*
-float64 biasing(float *readArray) {
+float64 biasing(float *readArray) { // Is read in this case the full array? Or 200100 or whatever?
 	float64 avgai = 0;
 	int ignore = 0;
 	for (int i = ignore; i < read; i++) {
@@ -1092,7 +1099,7 @@ Skip:
 		//std::cout << double(delta_t) / double(fps_frames) << std::endl;
 		std::cout << double(fps_frames) << " FPS" << std::endl;
 		std::cout << countdown << " elements remaining" << std::endl;
-		std::cout << "Approximately " << double(countdown) / (600000.0) << " minutes remaining." << std::endl;
+		std::cout << "Approximately " << double(countdown) / (60 * sampleRate) << " minutes remaining." << std::endl;
 		//std::cout << double(delta_t) << std::endl;
 		//std::cout << delta_t << std::endl;
 		fps_frames = 0;
@@ -1168,12 +1175,12 @@ void display1(void) {
 		}
 		//CLangle += (float)((angAcc / 2) * (read * (1.0 / 10000.0) * 120.0) * (read * (1.0 / 10000.0) * 120.0) + angVel * (read * (1.0 / 10000.0) * 120.0)) * (180.0 / PI);
 		//CLangle += (float)((angAcc / 2.0) * (read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) * (read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) + angVel * (read * (1.0 / 10000.0) * (1000.0 / (float)d_t))) * (180.0 / PI);
-		if (isnan(CLangle + (float)angVel * ((float)read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) * (180.0 / PI))) {
+		if (isnan(CLangle + (float)angVel * ((float)read * (1.0 / sampleRate) * (1000.0 / (float)d_t)) * (180.0 / PI))) {
 			printf("\nWhat the hell");
 		}
-		CLangle += (float)angVel * ((float)read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) * (180.0 / PI);
+		CLangle += (float)angVel * ((float)read * (1.0 / sampleRate) * (1000.0 / (float)d_t)) * (180.0 / PI);
 		//angVel += (float)angAcc * (read * (1.0 / 10000.0) * 120.0);
-		if (isnan(angVel + (float)angAcc * ((float)read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) / 1000.0)) {
+		if (isnan(angVel + (float)angAcc * ((float)read * (1.0 / sampleRate) * (1000.0 / (float)d_t)) / 1000.0)) {
 			printf("\nWhat the hell again");
 		}
 		//angVel += (float)angAcc * ((float)read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) / 1000.0;
@@ -1356,7 +1363,7 @@ void display2(void) {
 
 
 	glutSwapBuffers();
-	//wglSwapIntervalEXT(-1);
+	wglSwapIntervalEXT(-1);
 
 	//angle++; //Not really the angle, more like the time step incrementing thing.
 }
@@ -1441,7 +1448,7 @@ void display3(void) {
 
 
 	glutSwapBuffers();
-	//wglSwapIntervalEXT(-1);
+	wglSwapIntervalEXT(-1);
 
 	//angle++; //Not really the angle, more like the time step incrementing thing.
 }
@@ -2057,9 +2064,15 @@ int main(int argc, char **argv) {
 	float tempWeight;
 	float tempLength;
 	float tempMothWidth;
+	float64 tempSampleRate;
 	//printf("Press left or right arrows to move our rectangle\n");
 	///*
-	printf("Enter the weight of the moth in grams: ");
+	printf("Enter the sampling rate: ");
+	scanf("%lf", &tempSampleRate); // "%lf" instead of "%f"
+	sampleRate = tempSampleRate;
+	window = (int)(floorf(sampleRate / 60) + 1) * 2;
+	//printf("%i", window);
+	printf("\nEnter the weight of the moth in grams: ");
 	scanf("%f", &tempWeight);
 	weight = tempWeight / 1000.0;
 	printf("\nEnter the length of the moth in centimeters: ");
@@ -2083,13 +2096,13 @@ int main(int argc, char **argv) {
 	// IMPORTANT
 	//changed Dev1 to Dev5 as the connection established. So verify what Dev is being used to update this code. DEV5 is our force torque.
 	DAQmxErrChk(DAQmxCreateAIVoltageChan(taskHandle, "Dev1/ai0:6", "", DAQmx_Val_Diff, -10.0, 10.0, DAQmx_Val_Volts, NULL));
-	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle, "", 10000.0, DAQmx_Val_Rising, DAQmx_Val_ContSamps, 200100));
+	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle, "", (float64)sampleRate, DAQmx_Val_Rising, DAQmx_Val_ContSamps, (int)(20.01 * sampleRate)));
 	// DAQmx Start Code
 	DAQmxErrChk(DAQmxStartTask(taskHandle));
 	//printf("\ngot here");
 	// DAQmx Read Code
 	//printf("%f\n", data[0]);
-	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, 200100, -1.0, DAQmx_Val_GroupByChannel, data, 1400700, &read, NULL));
+	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, (int)(20.01 * sampleRate), -1.0, DAQmx_Val_GroupByChannel, data, 1400700, &read, NULL));
 	//printf("%f\n", data[0]);
 	//printf("\ngot passed through analog");
 	//printf("%f\n", data[199999]);
