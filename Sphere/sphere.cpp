@@ -445,7 +445,7 @@ float64 calcFeedback() {
 	//avgai0 = avgai0 / read;
 	avgai0 = avgai0 / window;
 	
-	if (abs(maxYaw - minYaw) < 0.09) {
+	if (abs(maxYaw - minYaw) < 0.09 && abs(avgai0) < 0.09) {
 		avgai0 = 0.0;
 	}
 
