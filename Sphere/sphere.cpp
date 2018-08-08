@@ -79,8 +79,9 @@ float weight = 1; // in kg
 float length = 1; // in m
 float mothWidth = 1; // in m
 float gains[5] = { 0.5, 1, 1.5, 2, 2.5 };
-float conditions[5] = { -1, 0.1, 0.5, 2, 10 };
+float conditions[5] = { -1, 0.1, 0.5, 2, 10 }; // least to greatest
 float protocalGains[8] = { 1, 1, 0.5, 2, 10, 0.1, -1, 1 };
+int protocal = 0; // Which protocal is being used
 bool preTrigger = false; //True if we trigger before recording
 bool preTriggered = false; //True if we have already pressed the trigger before the recording.
 int gainIt = 1;
@@ -908,12 +909,24 @@ vert(float theta, float phi, int i, bool color)
 	arr2[9 * i + 8] = 1;
 	//*/
 	///*
-	if (color) {
+	if (color && !drifting) {
 		arr2[9 * i + 6] = (float)0.5 * cosf(PI * theta / viewingAngle) + 0.5;
 		arr2[9 * i + 7] = (float)0.5 * cosf(PI * theta / viewingAngle) + 0.5;
 		arr2[9 * i + 8] = (float)0.5 * cosf(PI * theta / viewingAngle) + 0.5;
 	}
 	//*/
+	else if (color && drifting) {
+		if (fmod(theta, 2 * viewingAngle) < viewingAngle) {
+			arr2[9 * i + 6] = 1.0;
+			arr2[9 * i + 7] = 1.0;
+			arr2[9 * i + 8] = 1.0;
+		}
+		else {
+			arr2[9 * i + 6] = 0.0;
+			arr2[9 * i + 7] = 0.0;
+			arr2[9 * i + 8] = 0.0;
+		}
+	}
 	else {
 		arr2[9 * i + 6] = 0.0;
 		arr2[9 * i + 7] = 0.0;
@@ -975,7 +988,11 @@ DrawSphere(float del, bool color)
 
 		for (theta = -0.0f; theta <= 360.0f; theta += del) {
 			//if (fmod(theta, 2 * viewingAngle) <= viewingAngle && theta <= single) {
-			if ((theta <= 3 * single && theta >= single) || (!isSingle)) {
+			if (((theta <= 3 * viewingAngle && theta >= viewingAngle) || (!isSingle)) && !(drifting && isSingle)) {
+				vert(theta, phi, n, color);
+				vert(theta, phi2, n + 1, color);
+			}
+			else if ((drifting && isSingle) && theta <= 2.5 * viewingAngle && theta >= 1.5 * viewingAngle) {
 				vert(theta, phi, n, color);
 				vert(theta, phi2, n + 1, color);
 			}
@@ -1033,7 +1050,73 @@ void display(void) {
 	else if (currai6[queueit - 1] == 0 && !written && !centering && !centered && preTrigger) {
 		countdown = (240 * sampleRate) + read;
 		preTriggered = 1;
-		float * randomConditions = randomizeConditions();
+		//float * randomConditions = randomizeConditions();
+		protocal = (rand() % 6) + 1;
+
+		switch (protocal) {
+		case 1:
+			protocalGains[0] = 1;
+			protocalGains[1] = conditions[0];
+			protocalGains[2] = 1;
+			protocalGains[3] = conditions[4];
+			protocalGains[4] = conditions[3];
+			protocalGains[5] = 1;
+			protocalGains[6] = conditions[2];
+			protocalGains[7] = conditions[1];
+			break;
+		case 2:
+			protocalGains[0] = 1;
+			protocalGains[1] = conditions[0];
+			protocalGains[2] = 1;
+			protocalGains[3] = conditions[1];
+			protocalGains[4] = conditions[2];
+			protocalGains[5] = 1;
+			protocalGains[6] = conditions[3];
+			protocalGains[7] = conditions[4];
+			break;
+		case 3:
+			protocalGains[0] = 1;
+			protocalGains[1] = conditions[4];
+			protocalGains[2] = conditions[3];
+			protocalGains[3] = 1;
+			protocalGains[4] = conditions[2];
+			protocalGains[5] = conditions[1];
+			protocalGains[6] = 1;
+			protocalGains[7] = conditions[0];
+			break;
+		case 4:
+			protocalGains[0] = 1;
+			protocalGains[1] = conditions[1];
+			protocalGains[2] = conditions[2];
+			protocalGains[3] = 1;
+			protocalGains[4] = conditions[3];
+			protocalGains[5] = conditions[4];
+			protocalGains[6] = 1;
+			protocalGains[7] = conditions[0];
+			break;
+		case 5:
+			protocalGains[0] = 1;
+			protocalGains[1] = conditions[4];
+			protocalGains[2] = conditions[1];
+			protocalGains[3] = conditions[3];
+			protocalGains[4] = conditions[2];
+			protocalGains[5] = conditions[0];
+			protocalGains[6] = 1;
+			protocalGains[7] = conditions[0];
+			break;
+		case 6:
+			protocalGains[0] = 1;
+			protocalGains[1] = conditions[1];
+			protocalGains[2] = conditions[4];
+			protocalGains[3] = conditions[2];
+			protocalGains[4] = conditions[3];
+			protocalGains[5] = conditions[0];
+			protocalGains[6] = 1;
+			protocalGains[7] = conditions[0];
+			break;
+		}
+
+		/*
 		protocalGains[0] = 1;
 		protocalGains[1] = 1;
 		protocalGains[2] = randomConditions[0];
@@ -1042,6 +1125,7 @@ void display(void) {
 		protocalGains[5] = randomConditions[3];
 		protocalGains[6] = randomConditions[4];
 		protocalGains[7] = 1;
+		//*/
 	}
 	if (currai6[queueit - 1] != 0) {
 		//if (currai6.size() > 0 && currai6[currai6.size() - 1] != 0) {
@@ -1149,7 +1233,7 @@ Skip:
 	if (preTrigger && preTriggered) {
 		if (countdown > 210 * sampleRate) {
 			gain = protocalGains[0];
-			closedLoop = 0;
+			closedLoop = 1;
 		}
 		else if (countdown > 180 * sampleRate) {
 			closedLoop = 1;
@@ -1189,34 +1273,102 @@ Skip:
 	if (delta_t >= 1000) {
 		if (preTrigger && preTriggered) {
 			std::cout << double(fps_frames) << " FPS" << std::endl;
+			std::cout << "Protocal " << protocal << std::endl;
+
 			if (countdown > 210 * sampleRate) {
-				std::cout << "Stage 1: Open-loop" << std::endl;
+				if (gain == 1.0) {
+					std::cout << "Stage 1: Baseline gain = " << gain << std::endl;
+				}
+				else if (gain == -1.0) {
+					std::cout << "Stage 1: Inverted gain" << std::endl;
+				}
+				else {
+					std::cout << "Stage 1: Gain = " << gain << std::endl;
+				}
 			}
 			else if (countdown > 180 * sampleRate) {
-				std::cout << "Stage 2: Baseline gain = " << gain << std::endl;
+				if (gain == 1.0) {
+					std::cout << "Stage 2: Baseline gain = " << gain << std::endl;
+				}
+				else if (gain == -1.0) {
+					std::cout << "Stage 2: Inverted gain" << std::endl;
+				}
+				else {
+					std::cout << "Stage 2: Gain = " << gain << std::endl;
+				}
 			}
 			else if (countdown > 150 * sampleRate) {
-				std::cout << "Stage 3: Gain = " << gain << std::endl;
+				if (gain == 1.0) {
+					std::cout << "Stage 3: Baseline gain = " << gain << std::endl;
+				}
+				else if (gain == -1.0) {
+					std::cout << "Stage 3: Inverted gain" << std::endl;
+				}
+				else {
+					std::cout << "Stage 3: Gain = " << gain << std::endl;
+				}
 			}
 			else if (countdown > 120 * sampleRate) {
-				std::cout << "Stage 4: Gain = " << gain << std::endl;
+				if (gain == 1.0) {
+					std::cout << "Stage 4: Baseline gain = " << gain << std::endl;
+				}
+				else if (gain == -1.0) {
+					std::cout << "Stage 4: Inverted gain" << std::endl;
+				}
+				else {
+					std::cout << "Stage 4: Gain = " << gain << std::endl;
+				}
 			}
 			else if (countdown > 90 * sampleRate) {
-				std::cout << "Stage 5: Gain = " << gain << std::endl;
+				if (gain == 1.0) {
+					std::cout << "Stage 5: Baseline gain = " << gain << std::endl;
+				}
+				else if (gain == -1.0) {
+					std::cout << "Stage 5: Inverted gain" << std::endl;
+				}
+				else {
+					std::cout << "Stage 5: Gain = " << gain << std::endl;
+				}
 			}
 			else if (countdown > 60 * sampleRate) {
-				std::cout << "Stage 6: Gain = " << gain << std::endl;
+				if (gain == 1.0) {
+					std::cout << "Stage 6: Baseline gain = " << gain << std::endl;
+				}
+				else if (gain == -1.0) {
+					std::cout << "Stage 6: Inverted gain" << std::endl;
+				}
+				else {
+					std::cout << "Stage 6: Gain = " << gain << std::endl;
+				}
 			}
 			else if (countdown > 30 * sampleRate) {
-				std::cout << "Stage 7: Gain = " << gain << std::endl;
+				if (gain == 1.0) {
+					std::cout << "Stage 7: Baseline gain = " << gain << std::endl;
+				}
+				else if (gain == -1.0) {
+					std::cout << "Stage 7: Inverted gain" << std::endl;
+				}
+				else {
+					std::cout << "Stage 7: Gain = " << gain << std::endl;
+				}
 			}
 			else if (countdown > 0) {
-				std::cout << "Stage 8: Baseline gain = " << gain << std::endl;
+				if (gain == 1.0) {
+					std::cout << "Stage 8: Baseline gain = " << gain << std::endl;
+				}
+				else if (gain == -1.0) {
+					std::cout << "Stage 8: Inverted gain" << std::endl;
+				}
+				else {
+					std::cout << "Stage 8: Gain = " << gain << std::endl;
+				}
 			}
 			else {
+				/*
 				std::cout << "Done." << std::endl;
 				writeToFile();
 				preTriggered = 0;
+				//*/
 			}
 
 			std::cout << "Approximately " << fmod(double(countdown) / sampleRate, 30) << " seconds remaining." << std::endl;
@@ -1947,6 +2099,7 @@ void letter_pressed(unsigned char key, int x, int y) {
 		drifting = 0;
 		isWhiteNoise = 0;
 		locust = 0;
+		init();
 		glutPostRedisplay();
 		break;
 	case 102: //f will request frequency
@@ -1957,6 +2110,7 @@ void letter_pressed(unsigned char key, int x, int y) {
 		drifting = 0;
 		isWhiteNoise = 0;
 		locust = 0;
+		init();
 		glutPostRedisplay();
 		break;
 	case 68: //D will request driftDeg
@@ -1968,6 +2122,7 @@ void letter_pressed(unsigned char key, int x, int y) {
 		drifting = 1;
 		isWhiteNoise = 0;
 		locust = 0;
+		init();
 		glutPostRedisplay();
 		break;
 	case 100: //d will request driftDeg
@@ -1979,6 +2134,7 @@ void letter_pressed(unsigned char key, int x, int y) {
 		drifting = 1;
 		isWhiteNoise = 0;
 		locust = 0;
+		init();
 		glutPostRedisplay();
 		break;
 	case 79: //O will make open-loop
@@ -2061,12 +2217,14 @@ void letter_pressed(unsigned char key, int x, int y) {
 		isWhiteNoise = 1;
 		printf("\nWhite noise stimulus");
 		drifting = 0;
+		init();
 		glutPostRedisplay();
 		break;
 	case 119: //w will start whitenoise stimuli
 		isWhiteNoise = 1;
 		printf("\nWhite noise stimulus");
 		drifting = 0;
+		init();
 		glutPostRedisplay();
 		break;
 	case 82: //R will change the recording timescale between continuous and 20 second intervals
@@ -2124,6 +2282,7 @@ void letter_pressed(unsigned char key, int x, int y) {
 		locust = 1;
 		isWhiteNoise = 0;
 		drifting = 0;
+		init();
 		glutPostRedisplay();
 		break;
 	case 117: //u will start the locust stimuli
@@ -2135,6 +2294,7 @@ void letter_pressed(unsigned char key, int x, int y) {
 		locust = 1;
 		isWhiteNoise = 0;
 		drifting = 0;
+		init();
 		glutPostRedisplay();
 		break;
 	case 84: //T to toggle triggering before or after recording
