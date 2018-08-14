@@ -80,10 +80,11 @@ float length = 1; // in m
 float mothWidth = 1; // in m
 float gains[5] = { 0.5, 1, 1.5, 2, 2.5 };
 float conditions[5] = { -1, 0.1, 0.5, 2, 10 }; // least to greatest
-float protocalGains[8] = { 1, 1, 0.5, 2, 10, 0.1, -1, 1 };
-int protocal = 0; // Which protocal is being used
+float protocolGains[36] = { 1, 1, 0.5, 2, 10, 0.1, -1, 1, 1, 1, 0.5, 2, 10, 0.1, -1, 1, 1, 1, 0.5, 2, 10, 0.1, -1, 1, 1, 1, 0.5, 2, 10, 0.1, -1, 1, 1, 1, 0.5, 2 };
+int protocol = 0; // Which protocol is being used
 bool preTrigger = false; //True if we trigger before recording
 bool preTriggered = false; //True if we have already pressed the trigger before the recording.
+bool protocolWritten = false; //True if we've written a protocol to file and currently should not write again.
 int gainIt = 1;
 float gain = gains[gainIt]; // This is the gain that we'll be changing.
 int increment = 0;
@@ -299,8 +300,11 @@ void writeToFile() {
 		if ((continuousRecording || queueit < 200100) && !preTriggered) {
 			j = queueit;
 		}
-		else if (preTriggered) {
+		else if (preTriggered && countdown > 660 * sampleRate) {
 			j = 240 * sampleRate;
+		}
+		else if (preTriggered) {
+			j = 300 * sampleRate;
 		}
 		else {
 			j = 200100;
@@ -1048,83 +1052,209 @@ void display(void) {
 		//countdown = 200100; // Why?
 	}
 	else if (currai6[queueit - 1] == 0 && !written && !centering && !centered && preTrigger) {
-		countdown = (240 * sampleRate) + read;
+		countdown = (1260 * sampleRate) + read; // 21 minutes
 		preTriggered = 1;
 		//float * randomConditions = randomizeConditions();
-		protocal = (rand() % 6) + 1;
+		protocol = (rand() % 4) + 1;
 
-		switch (protocal) {
-		case 1:
-			protocalGains[0] = 1;
-			protocalGains[1] = conditions[0];
-			protocalGains[2] = 1;
-			protocalGains[3] = conditions[4];
-			protocalGains[4] = conditions[3];
-			protocalGains[5] = 1;
-			protocalGains[6] = conditions[2];
-			protocalGains[7] = conditions[1];
+		switch (protocol) {
+		case 1: // A B C D
+			protocolGains[0] = 1;
+			protocolGains[1] = 0.5;
+			protocolGains[2] = 1;
+			protocolGains[3] = 2;
+			protocolGains[4] = 4;
+			protocolGains[5] = 10;
+			protocolGains[6] = 1;
+			protocolGains[7] = -1;
+
+			protocolGains[8] = 1;
+			protocolGains[9] = 10;
+			protocolGains[10] = 4;
+			protocolGains[11] = 2;
+			protocolGains[12] = 1;
+			protocolGains[13] = 0.5;
+			protocolGains[14] = 1;
+			protocolGains[15] = -1;
+
+			protocolGains[16] = 1;
+			protocolGains[17] = 2;
+			protocolGains[18] = 3;
+			protocolGains[19] = 4;
+			protocolGains[20] = 5;
+			protocolGains[21] = 6;
+			protocolGains[22] = 7;
+			protocolGains[23] = 8;
+			protocolGains[24] = 9;
+			protocolGains[25] = 10;
+
+			protocolGains[26] = 10;
+			protocolGains[27] = 9;
+			protocolGains[28] = 8;
+			protocolGains[29] = 7;
+			protocolGains[30] = 6;
+			protocolGains[31] = 5;
+			protocolGains[32] = 4;
+			protocolGains[33] = 3;
+			protocolGains[34] = 2;
+			protocolGains[35] = 1;
 			break;
-		case 2:
-			protocalGains[0] = 1;
-			protocalGains[1] = conditions[0];
-			protocalGains[2] = 1;
-			protocalGains[3] = conditions[1];
-			protocalGains[4] = conditions[2];
-			protocalGains[5] = 1;
-			protocalGains[6] = conditions[3];
-			protocalGains[7] = conditions[4];
+		case 2: // B A C D
+			protocolGains[0] = 1;
+			protocolGains[1] = 10;
+			protocolGains[2] = 4;
+			protocolGains[3] = 2;
+			protocolGains[4] = 1;
+			protocolGains[5] = 0.5;
+			protocolGains[6] = 1;
+			protocolGains[7] = -1;
+
+			protocolGains[8] = 1;
+			protocolGains[9] = 0.5;
+			protocolGains[10] = 1;
+			protocolGains[11] = 2;
+			protocolGains[12] = 4;
+			protocolGains[13] = 10;
+			protocolGains[14] = 1;
+			protocolGains[15] = -1;
+
+			protocolGains[16] = 1;
+			protocolGains[17] = 2;
+			protocolGains[18] = 3;
+			protocolGains[19] = 4;
+			protocolGains[20] = 5;
+			protocolGains[21] = 6;
+			protocolGains[22] = 7;
+			protocolGains[23] = 8;
+			protocolGains[24] = 9;
+			protocolGains[25] = 10;
+
+			protocolGains[26] = 10;
+			protocolGains[27] = 9;
+			protocolGains[28] = 8;
+			protocolGains[29] = 7;
+			protocolGains[30] = 6;
+			protocolGains[31] = 5;
+			protocolGains[32] = 4;
+			protocolGains[33] = 3;
+			protocolGains[34] = 2;
+			protocolGains[35] = 1;
 			break;
-		case 3:
-			protocalGains[0] = 1;
-			protocalGains[1] = conditions[4];
-			protocalGains[2] = conditions[3];
-			protocalGains[3] = 1;
-			protocalGains[4] = conditions[2];
-			protocalGains[5] = conditions[1];
-			protocalGains[6] = 1;
-			protocalGains[7] = conditions[0];
+		case 3: // A B D C
+			protocolGains[0] = 1;
+			protocolGains[1] = 0.5;
+			protocolGains[2] = 1;
+			protocolGains[3] = 2;
+			protocolGains[4] = 4;
+			protocolGains[5] = 10;
+			protocolGains[6] = 1;
+			protocolGains[7] = -1;
+
+			protocolGains[8] = 1;
+			protocolGains[9] = 10;
+			protocolGains[10] = 4;
+			protocolGains[11] = 2;
+			protocolGains[12] = 1;
+			protocolGains[13] = 0.5;
+			protocolGains[14] = 1;
+			protocolGains[15] = -1;
+
+			protocolGains[16] = 10;
+			protocolGains[17] = 9;
+			protocolGains[18] = 8;
+			protocolGains[19] = 7;
+			protocolGains[20] = 6;
+			protocolGains[21] = 5;
+			protocolGains[22] = 4;
+			protocolGains[23] = 3;
+			protocolGains[24] = 2;
+			protocolGains[25] = 1;
+
+			protocolGains[26] = 1;
+			protocolGains[27] = 2;
+			protocolGains[28] = 3;
+			protocolGains[29] = 4;
+			protocolGains[30] = 5;
+			protocolGains[31] = 6;
+			protocolGains[32] = 7;
+			protocolGains[33] = 8;
+			protocolGains[34] = 9;
+			protocolGains[35] = 10;
 			break;
 		case 4:
-			protocalGains[0] = 1;
-			protocalGains[1] = conditions[1];
-			protocalGains[2] = conditions[2];
-			protocalGains[3] = 1;
-			protocalGains[4] = conditions[3];
-			protocalGains[5] = conditions[4];
-			protocalGains[6] = 1;
-			protocalGains[7] = conditions[0];
+			protocolGains[0] = 1;
+			protocolGains[1] = 10;
+			protocolGains[2] = 4;
+			protocolGains[3] = 2;
+			protocolGains[4] = 1;
+			protocolGains[5] = 0.5;
+			protocolGains[6] = 1;
+			protocolGains[7] = -1;
+
+			protocolGains[8] = 1;
+			protocolGains[9] = 0.5;
+			protocolGains[10] = 1;
+			protocolGains[11] = 2;
+			protocolGains[12] = 4;
+			protocolGains[13] = 10;
+			protocolGains[14] = 1;
+			protocolGains[15] = -1;
+
+			protocolGains[16] = 10;
+			protocolGains[17] = 9;
+			protocolGains[18] = 8;
+			protocolGains[19] = 7;
+			protocolGains[20] = 6;
+			protocolGains[21] = 5;
+			protocolGains[22] = 4;
+			protocolGains[23] = 3;
+			protocolGains[24] = 2;
+			protocolGains[25] = 1;
+
+			protocolGains[26] = 1;
+			protocolGains[27] = 2;
+			protocolGains[28] = 3;
+			protocolGains[29] = 4;
+			protocolGains[30] = 5;
+			protocolGains[31] = 6;
+			protocolGains[32] = 7;
+			protocolGains[33] = 8;
+			protocolGains[34] = 9;
+			protocolGains[35] = 10;
 			break;
+		/*
 		case 5:
-			protocalGains[0] = 1;
-			protocalGains[1] = conditions[4];
-			protocalGains[2] = conditions[1];
-			protocalGains[3] = conditions[3];
-			protocalGains[4] = conditions[2];
-			protocalGains[5] = conditions[0];
-			protocalGains[6] = 1;
-			protocalGains[7] = conditions[0];
+			protocolGains[0] = 1;
+			protocolGains[1] = conditions[4];
+			protocolGains[2] = conditions[1];
+			protocolGains[3] = conditions[3];
+			protocolGains[4] = conditions[2];
+			protocolGains[5] = conditions[0];
+			protocolGains[6] = 1;
+			protocolGains[7] = conditions[0];
 			break;
 		case 6:
-			protocalGains[0] = 1;
-			protocalGains[1] = conditions[1];
-			protocalGains[2] = conditions[4];
-			protocalGains[3] = conditions[2];
-			protocalGains[4] = conditions[3];
-			protocalGains[5] = conditions[0];
-			protocalGains[6] = 1;
-			protocalGains[7] = conditions[0];
+			protocolGains[0] = 1;
+			protocolGains[1] = conditions[1];
+			protocolGains[2] = conditions[4];
+			protocolGains[3] = conditions[2];
+			protocolGains[4] = conditions[3];
+			protocolGains[5] = conditions[0];
+			protocolGains[6] = 1;
+			protocolGains[7] = conditions[0];
 			break;
+			//*/
 		}
 
 		/*
-		protocalGains[0] = 1;
-		protocalGains[1] = 1;
-		protocalGains[2] = randomConditions[0];
-		protocalGains[3] = randomConditions[1];
-		protocalGains[4] = randomConditions[2];
-		protocalGains[5] = randomConditions[3];
-		protocalGains[6] = randomConditions[4];
-		protocalGains[7] = 1;
+		protocolGains[0] = 1;
+		protocolGains[1] = 1;
+		protocolGains[2] = randomConditions[0];
+		protocolGains[3] = randomConditions[1];
+		protocolGains[4] = randomConditions[2];
+		protocolGains[5] = randomConditions[3];
+		protocolGains[6] = randomConditions[4];
+		protocolGains[7] = 1;
 		//*/
 	}
 	if (currai6[queueit - 1] != 0) {
@@ -1231,31 +1361,157 @@ Skip:
 	}
 	//*/
 	if (preTrigger && preTriggered) {
-		if (countdown > 210 * sampleRate) {
-			gain = protocalGains[0];
+		if (countdown > 1230 * sampleRate) {
+			gain = protocolGains[0];
 			closedLoop = 1;
+		}
+		else if (countdown > 1200 * sampleRate) {
+			closedLoop = 1;
+			gain = protocolGains[1];
+		}
+		else if (countdown > 1170 * sampleRate) {
+			gain = protocolGains[2];
+		}
+		else if (countdown > 1140 * sampleRate) {
+			gain = protocolGains[3];
+		}
+		else if (countdown > 1110 * sampleRate) {
+			gain = protocolGains[4];
+		}
+		else if (countdown > 1080 * sampleRate) {
+			gain = protocolGains[5];
+		}
+		else if (countdown > 1050 * sampleRate) {
+			gain = protocolGains[6];
+		}
+		else if (countdown > 1020 * sampleRate) {
+			gain = protocolGains[7];
+		}
+		
+		// Minute break
+		else if (countdown > 960 * sampleRate) {
+			clear = true;
+			if (!protocolWritten) {
+				std::cout << "Done with first protocol." << std::endl;
+				writeToFile();
+				protocolWritten = true;
+			}
+		}
+		else if (countdown > 930 * sampleRate) {
+			clear = false;
+			protocolWritten = false;
+			gain = protocolGains[8];
+			//closedLoop = 1;
+		}
+		else if (countdown > 900 * sampleRate) {
+			closedLoop = 1;
+			gain = protocolGains[9];
+		}
+		else if (countdown > 870 * sampleRate) {
+			gain = protocolGains[10];
+		}
+		else if (countdown > 840 * sampleRate) {
+			gain = protocolGains[11];
+		}
+		else if (countdown > 810 * sampleRate) {
+			gain = protocolGains[12];
+		}
+		else if (countdown > 780 * sampleRate) {
+			gain = protocolGains[13];
+		}
+		else if (countdown > 750 * sampleRate) {
+			gain = protocolGains[14];
+		}
+		else if (countdown > 720 * sampleRate) {
+			gain = protocolGains[15];
+		}
+
+		// Minute break
+		else if (countdown > 660 * sampleRate) {
+			clear = true;
+			if (!protocolWritten) {
+				std::cout << "Done with second protocol." << std::endl;
+				writeToFile();
+				protocolWritten = true;
+			}
+		}
+		else if (countdown > 630 * sampleRate) {
+			clear = false;
+			protocolWritten = false;
+			gain = protocolGains[16];
+			//closedLoop = 1;
+		}
+		else if (countdown > 600 * sampleRate) {
+			closedLoop = 1;
+			gain = protocolGains[17];
+		}
+		else if (countdown > 570 * sampleRate) {
+			gain = protocolGains[18];
+		}
+		else if (countdown > 540 * sampleRate) {
+			gain = protocolGains[19];
+		}
+		else if (countdown > 510 * sampleRate) {
+			gain = protocolGains[20];
+		}
+		else if (countdown > 480 * sampleRate) {
+			gain = protocolGains[21];
+		}
+		else if (countdown > 450 * sampleRate) {
+			gain = protocolGains[22];
+		}
+		else if (countdown > 420 * sampleRate) {
+			gain = protocolGains[23];
+		}
+		else if (countdown > 390 * sampleRate) {
+			protocolWritten = false;
+			gain = protocolGains[24];
+			//closedLoop = 1;
+		}
+		else if (countdown > 360 * sampleRate) {
+			closedLoop = 1;
+			gain = protocolGains[25];
+		}
+
+		// Minute break
+		else if (countdown > 300 * sampleRate) {
+			clear = true;
+			if (!protocolWritten) {
+				std::cout << "Done with third protocol." << std::endl;
+				writeToFile();
+				protocolWritten = true;
+			}
+		}
+		else if (countdown > 270 * sampleRate) {
+			clear = false;
+			gain = protocolGains[26];
+		}
+		else if (countdown > 240 * sampleRate) {
+			gain = protocolGains[27];
+		}
+		else if (countdown > 210 * sampleRate) {
+			gain = protocolGains[28];
 		}
 		else if (countdown > 180 * sampleRate) {
-			closedLoop = 1;
-			gain = protocalGains[1];
+			gain = protocolGains[29];
 		}
 		else if (countdown > 150 * sampleRate) {
-			gain = protocalGains[2];
+			gain = protocolGains[30];
 		}
 		else if (countdown > 120 * sampleRate) {
-			gain = protocalGains[3];
+			gain = protocolGains[31];
 		}
 		else if (countdown > 90 * sampleRate) {
-			gain = protocalGains[4];
+			gain = protocolGains[32];
 		}
 		else if (countdown > 60 * sampleRate) {
-			gain = protocalGains[5];
+			gain = protocolGains[33];
 		}
 		else if (countdown > 30 * sampleRate) {
-			gain = protocalGains[6];
+			gain = protocolGains[34];
 		}
-		else if (countdown > 0) {
-			gain = protocalGains[7];
+		else if (countdown > 0 * sampleRate) {
+			gain = protocolGains[35];
 		}
 		else {
 			std::cout << "Done." << std::endl;
@@ -1273,9 +1529,71 @@ Skip:
 	if (delta_t >= 1000) {
 		if (preTrigger && preTriggered) {
 			std::cout << double(fps_frames) << " FPS" << std::endl;
-			std::cout << "Protocal " << protocal << std::endl;
+			switch (protocol) {
+			case 1:
+				std::cout << "A B C D" << std::endl;
+				if (countdown > 1020 * sampleRate) {
+					std::cout << "Protocol A" << std::endl;
+				}
+				else if (countdown > 720 * sampleRate) {
+					std::cout << "Protocol B" << std::endl;
+				}
+				else if (countdown > 360 * sampleRate) {
+					std::cout << "Protocol C" << std::endl;
+				}
+				else if (countdown > 0 * sampleRate) {
+					std::cout << "Protocol D" << std::endl;
+				}
+				break;
+			case 2:
+				std::cout << "B A C D" << std::endl;
+				if (countdown > 1020 * sampleRate) {
+					std::cout << "Protocol B" << std::endl;
+				}
+				else if (countdown > 720 * sampleRate) {
+					std::cout << "Protocol A" << std::endl;
+				}
+				else if (countdown > 360 * sampleRate) {
+					std::cout << "Protocol C" << std::endl;
+				}
+				else if (countdown > 0 * sampleRate) {
+					std::cout << "Protocol D" << std::endl;
+				}
+				break;
+			case 3:
+				std::cout << "A B D C" << std::endl;
+				if (countdown > 1020 * sampleRate) {
+					std::cout << "Protocol A" << std::endl;
+				}
+				else if (countdown > 720 * sampleRate) {
+					std::cout << "Protocol B" << std::endl;
+				}
+				else if (countdown > 360 * sampleRate) {
+					std::cout << "Protocol D" << std::endl;
+				}
+				else if (countdown > 0 * sampleRate) {
+					std::cout << "Protocol C" << std::endl;
+				}
+				break;
+			case 4:
+				std::cout << "B A D C" << std::endl;
+				if (countdown > 1020 * sampleRate) {
+					std::cout << "Protocol B" << std::endl;
+				}
+				else if (countdown > 720 * sampleRate) {
+					std::cout << "Protocol A" << std::endl;
+				}
+				else if (countdown > 360 * sampleRate) {
+					std::cout << "Protocol D" << std::endl;
+				}
+				else if (countdown > 0 * sampleRate) {
+					std::cout << "Protocol C" << std::endl;
+				}
+				break;
+			}
+			//std::cout << "Protocol " << protocol << std::endl;
 
-			if (countdown > 210 * sampleRate) {
+			if (countdown > 1230 * sampleRate || (countdown > 930 * sampleRate && countdown <= 960 * sampleRate) || (countdown > 630 * sampleRate && countdown <= 660 * sampleRate) || (countdown > 270 * sampleRate && countdown <= 300 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 1: Baseline gain = " << gain << std::endl;
 				}
@@ -1286,7 +1604,7 @@ Skip:
 					std::cout << "Stage 1: Gain = " << gain << std::endl;
 				}
 			}
-			else if (countdown > 180 * sampleRate) {
+			else if (countdown > 1200 * sampleRate || (countdown > 900 * sampleRate && countdown <= 930 * sampleRate) || (countdown > 600 * sampleRate && countdown <= 630 * sampleRate) || (countdown > 240 * sampleRate && countdown <= 270 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 2: Baseline gain = " << gain << std::endl;
 				}
@@ -1297,7 +1615,7 @@ Skip:
 					std::cout << "Stage 2: Gain = " << gain << std::endl;
 				}
 			}
-			else if (countdown > 150 * sampleRate) {
+			else if (countdown > 1170 * sampleRate || (countdown > 870 * sampleRate && countdown <= 900 * sampleRate) || (countdown > 570 * sampleRate && countdown <= 600 * sampleRate) || (countdown > 210 * sampleRate && countdown <= 240 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 3: Baseline gain = " << gain << std::endl;
 				}
@@ -1308,7 +1626,7 @@ Skip:
 					std::cout << "Stage 3: Gain = " << gain << std::endl;
 				}
 			}
-			else if (countdown > 120 * sampleRate) {
+			else if (countdown > 1140 * sampleRate || (countdown > 840 * sampleRate && countdown <= 870 * sampleRate) || (countdown > 540 * sampleRate && countdown <= 570 * sampleRate) || (countdown > 180 * sampleRate && countdown <= 210 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 4: Baseline gain = " << gain << std::endl;
 				}
@@ -1319,7 +1637,7 @@ Skip:
 					std::cout << "Stage 4: Gain = " << gain << std::endl;
 				}
 			}
-			else if (countdown > 90 * sampleRate) {
+			else if (countdown > 1110 * sampleRate || (countdown > 810 * sampleRate && countdown <= 840 * sampleRate) || (countdown > 510 * sampleRate && countdown <= 540 * sampleRate) || (countdown > 150 * sampleRate && countdown <= 180 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 5: Baseline gain = " << gain << std::endl;
 				}
@@ -1330,7 +1648,7 @@ Skip:
 					std::cout << "Stage 5: Gain = " << gain << std::endl;
 				}
 			}
-			else if (countdown > 60 * sampleRate) {
+			else if (countdown > 1080 * sampleRate || (countdown > 780 * sampleRate && countdown <= 810 * sampleRate) || (countdown > 480 * sampleRate && countdown <= 510 * sampleRate) || (countdown > 120 * sampleRate && countdown <= 150 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 6: Baseline gain = " << gain << std::endl;
 				}
@@ -1341,7 +1659,7 @@ Skip:
 					std::cout << "Stage 6: Gain = " << gain << std::endl;
 				}
 			}
-			else if (countdown > 30 * sampleRate) {
+			else if (countdown > 1050 * sampleRate || (countdown > 750 * sampleRate && countdown <= 780 * sampleRate) || (countdown > 450 * sampleRate && countdown <= 480 * sampleRate) || (countdown > 90 * sampleRate && countdown <= 120 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 7: Baseline gain = " << gain << std::endl;
 				}
@@ -1352,7 +1670,7 @@ Skip:
 					std::cout << "Stage 7: Gain = " << gain << std::endl;
 				}
 			}
-			else if (countdown > 0) {
+			else if (countdown > 1020 * sampleRate || (countdown > 720 * sampleRate && countdown <= 750 * sampleRate) || (countdown > 420 * sampleRate && countdown <= 450 * sampleRate) || (countdown > 60 * sampleRate && countdown <= 90 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 8: Baseline gain = " << gain << std::endl;
 				}
@@ -1363,6 +1681,28 @@ Skip:
 					std::cout << "Stage 8: Gain = " << gain << std::endl;
 				}
 			}
+			else if ((countdown > 390 * sampleRate && countdown <= 420 * sampleRate) || (countdown > 30 * sampleRate && countdown <= 60 * sampleRate)) {
+				if (gain == 1.0) {
+					std::cout << "Stage 9: Baseline gain = " << gain << std::endl;
+				}
+				else if (gain == -1.0) {
+					std::cout << "Stage 9: Inverted gain" << std::endl;
+				}
+				else {
+					std::cout << "Stage 9: Gain = " << gain << std::endl;
+				}
+			}
+			else if ((countdown > 360 * sampleRate && countdown <= 390 * sampleRate) || (countdown > 0 * sampleRate && countdown <= 30 * sampleRate)) {
+				if (gain == 1.0) {
+					std::cout << "Stage 10: Baseline gain = " << gain << std::endl;
+				}
+				else if (gain == -1.0) {
+					std::cout << "Stage 10: Inverted gain" << std::endl;
+				}
+				else {
+					std::cout << "Stage 10: Gain = " << gain << std::endl;
+				}
+			}
 			else {
 				/*
 				std::cout << "Done." << std::endl;
@@ -1370,8 +1710,13 @@ Skip:
 				preTriggered = 0;
 				//*/
 			}
-
-			std::cout << "Approximately " << fmod(double(countdown) / sampleRate, 30) << " seconds remaining." << std::endl;
+			if ((countdown > 960 * sampleRate && countdown <= 1020 * sampleRate) || (countdown > 660 * sampleRate && countdown <= 720 * sampleRate) || (countdown > 300 * sampleRate && countdown <= 360 * sampleRate)) {
+				std::cout << "Resting." << std::endl;
+				std::cout << "Approximately " << fmod(double(countdown) / sampleRate, 60) << " seconds remaining." << std::endl;
+			}
+			else {
+				std::cout << "Approximately " << fmod(double(countdown) / sampleRate, 30) << " seconds remaining." << std::endl;
+			}
 			std::cout << std::endl;
 		}
 		else {
