@@ -122,7 +122,7 @@ int32       error = 0;
 TaskHandle  taskHandle = 0;
 int32       read;
 float64     data[1400700];
-float64		currentData[1400700];
+float64		currentData[1400700*2];
 /*
 float64*		currai0 = new float64[20010000];
 float64*		currai1 = new float64[20010000];
@@ -138,7 +138,7 @@ float64*		currxpcl = new float64[20010000];	// closed loop
 ///*
 const int maxElements = 24000100;
 float64 sampleRate = 10000.0;
-int window = (int)(floorf(sampleRate / 60) + 1) * 2;
+int window = (int)(floorf(sampleRate / 23) + 1) * 2;
 int countdown = maxElements;
 int tempCountdown = countdown;
 //int countdown = 200100;
@@ -1052,7 +1052,7 @@ void display(void) {
 		//countdown = 200100; // Why?
 	}
 	else if (currai6[queueit - 1] == 0 && !written && !centering && !centered && preTrigger) {
-		countdown = (1260 * sampleRate) + read; // 21 minutes
+		countdown = (1620 * sampleRate) + read; // 27 minutes
 		preTriggered = 1;
 		//float * randomConditions = randomizeConditions();
 		protocol = (rand() % 4) + 1;
@@ -1267,7 +1267,7 @@ void display(void) {
 	//glTranslatef(0, 0, -1000);
 
 	//*
-	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, -1, -1.0, DAQmx_Val_GroupByChannel, currentData, 1400700, &read, NULL));
+	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, -1, -1.0, DAQmx_Val_GroupByChannel, currentData, 1400700*2, &read, NULL));
 	goto Skip;
 
 Error:
@@ -1361,35 +1361,37 @@ Skip:
 	}
 	//*/
 	if (preTrigger && preTriggered) {
-		if (countdown > 1230 * sampleRate) {
+		if (countdown > (360 + 1230) * sampleRate) {
+			clear = false;
+			protocolWritten = false;
 			gain = protocolGains[0];
 			closedLoop = 1;
 		}
-		else if (countdown > 1200 * sampleRate) {
+		else if (countdown > (360 + 1200) * sampleRate) {
 			closedLoop = 1;
 			gain = protocolGains[1];
 		}
-		else if (countdown > 1170 * sampleRate) {
+		else if (countdown > (360 + 1170) * sampleRate) {
 			gain = protocolGains[2];
 		}
-		else if (countdown > 1140 * sampleRate) {
+		else if (countdown > (360 + 1140) * sampleRate) {
 			gain = protocolGains[3];
 		}
-		else if (countdown > 1110 * sampleRate) {
+		else if (countdown > (360 + 1110) * sampleRate) {
 			gain = protocolGains[4];
 		}
-		else if (countdown > 1080 * sampleRate) {
+		else if (countdown > (360 + 1080) * sampleRate) {
 			gain = protocolGains[5];
 		}
-		else if (countdown > 1050 * sampleRate) {
+		else if (countdown > (360 + 1050) * sampleRate) {
 			gain = protocolGains[6];
 		}
-		else if (countdown > 1020 * sampleRate) {
+		else if (countdown > (360 + 1020) * sampleRate) {
 			gain = protocolGains[7];
 		}
 		
 		// Minute break
-		else if (countdown > 960 * sampleRate) {
+		else if (countdown > (240 + 960) * sampleRate) {
 			clear = true;
 			if (!protocolWritten) {
 				std::cout << "Done with first protocol." << std::endl;
@@ -1397,37 +1399,37 @@ Skip:
 				protocolWritten = true;
 			}
 		}
-		else if (countdown > 930 * sampleRate) {
+		else if (countdown > (240 + 930) * sampleRate) {
 			clear = false;
 			protocolWritten = false;
 			gain = protocolGains[8];
 			//closedLoop = 1;
 		}
-		else if (countdown > 900 * sampleRate) {
+		else if (countdown > (240 + 900) * sampleRate) {
 			closedLoop = 1;
 			gain = protocolGains[9];
 		}
-		else if (countdown > 870 * sampleRate) {
+		else if (countdown > (240 + 870) * sampleRate) {
 			gain = protocolGains[10];
 		}
-		else if (countdown > 840 * sampleRate) {
+		else if (countdown > (240 + 840) * sampleRate) {
 			gain = protocolGains[11];
 		}
-		else if (countdown > 810 * sampleRate) {
+		else if (countdown > (240 + 810) * sampleRate) {
 			gain = protocolGains[12];
 		}
-		else if (countdown > 780 * sampleRate) {
+		else if (countdown > (240 + 780) * sampleRate) {
 			gain = protocolGains[13];
 		}
-		else if (countdown > 750 * sampleRate) {
+		else if (countdown > (240 + 750) * sampleRate) {
 			gain = protocolGains[14];
 		}
-		else if (countdown > 720 * sampleRate) {
+		else if (countdown > (240 + 720) * sampleRate) {
 			gain = protocolGains[15];
 		}
 
 		// Minute break
-		else if (countdown > 660 * sampleRate) {
+		else if (countdown > (120 + 660) * sampleRate) {
 			clear = true;
 			if (!protocolWritten) {
 				std::cout << "Done with second protocol." << std::endl;
@@ -1435,40 +1437,39 @@ Skip:
 				protocolWritten = true;
 			}
 		}
-		else if (countdown > 630 * sampleRate) {
+		else if (countdown > (120 + 630) * sampleRate) {
 			clear = false;
 			protocolWritten = false;
 			gain = protocolGains[16];
 			//closedLoop = 1;
 		}
-		else if (countdown > 600 * sampleRate) {
+		else if (countdown > (120 + 600) * sampleRate) {
 			closedLoop = 1;
 			gain = protocolGains[17];
 		}
-		else if (countdown > 570 * sampleRate) {
+		else if (countdown > (120 + 570) * sampleRate) {
 			gain = protocolGains[18];
 		}
-		else if (countdown > 540 * sampleRate) {
+		else if (countdown > (120 + 540) * sampleRate) {
 			gain = protocolGains[19];
 		}
-		else if (countdown > 510 * sampleRate) {
+		else if (countdown > (120 + 510) * sampleRate) {
 			gain = protocolGains[20];
 		}
-		else if (countdown > 480 * sampleRate) {
+		else if (countdown > (120 + 480) * sampleRate) {
 			gain = protocolGains[21];
 		}
-		else if (countdown > 450 * sampleRate) {
+		else if (countdown > (120 + 450) * sampleRate) {
 			gain = protocolGains[22];
 		}
-		else if (countdown > 420 * sampleRate) {
+		else if (countdown > (120 + 420) * sampleRate) {
 			gain = protocolGains[23];
 		}
-		else if (countdown > 390 * sampleRate) {
-			protocolWritten = false;
+		else if (countdown > (120 + 390) * sampleRate) {
 			gain = protocolGains[24];
 			//closedLoop = 1;
 		}
-		else if (countdown > 360 * sampleRate) {
+		else if (countdown > (120 + 360) * sampleRate) {
 			closedLoop = 1;
 			gain = protocolGains[25];
 		}
@@ -1483,6 +1484,7 @@ Skip:
 			}
 		}
 		else if (countdown > 270 * sampleRate) {
+			protocolWritten = false;
 			clear = false;
 			gain = protocolGains[26];
 		}
@@ -1532,13 +1534,13 @@ Skip:
 			switch (protocol) {
 			case 1:
 				std::cout << "A B C D" << std::endl;
-				if (countdown > 1020 * sampleRate) {
+				if (countdown > (360 + 1020) * sampleRate) {
 					std::cout << "Protocol A" << std::endl;
 				}
-				else if (countdown > 720 * sampleRate) {
+				else if (countdown > (240 + 720) * sampleRate) {
 					std::cout << "Protocol B" << std::endl;
 				}
-				else if (countdown > 360 * sampleRate) {
+				else if (countdown > (120 + 360) * sampleRate) {
 					std::cout << "Protocol C" << std::endl;
 				}
 				else if (countdown > 0 * sampleRate) {
@@ -1547,13 +1549,13 @@ Skip:
 				break;
 			case 2:
 				std::cout << "B A C D" << std::endl;
-				if (countdown > 1020 * sampleRate) {
+				if (countdown > (360 + 1020) * sampleRate) {
 					std::cout << "Protocol B" << std::endl;
 				}
-				else if (countdown > 720 * sampleRate) {
+				else if (countdown > (240 + 720) * sampleRate) {
 					std::cout << "Protocol A" << std::endl;
 				}
-				else if (countdown > 360 * sampleRate) {
+				else if (countdown > (120 + 360) * sampleRate) {
 					std::cout << "Protocol C" << std::endl;
 				}
 				else if (countdown > 0 * sampleRate) {
@@ -1562,13 +1564,13 @@ Skip:
 				break;
 			case 3:
 				std::cout << "A B D C" << std::endl;
-				if (countdown > 1020 * sampleRate) {
+				if (countdown > (360 + 1020) * sampleRate) {
 					std::cout << "Protocol A" << std::endl;
 				}
-				else if (countdown > 720 * sampleRate) {
+				else if (countdown > (240 + 720) * sampleRate) {
 					std::cout << "Protocol B" << std::endl;
 				}
-				else if (countdown > 360 * sampleRate) {
+				else if (countdown > (120 + 360) * sampleRate) {
 					std::cout << "Protocol D" << std::endl;
 				}
 				else if (countdown > 0 * sampleRate) {
@@ -1577,13 +1579,13 @@ Skip:
 				break;
 			case 4:
 				std::cout << "B A D C" << std::endl;
-				if (countdown > 1020 * sampleRate) {
+				if (countdown > (360 + 1020) * sampleRate) {
 					std::cout << "Protocol B" << std::endl;
 				}
-				else if (countdown > 720 * sampleRate) {
+				else if (countdown > (240 + 720) * sampleRate) {
 					std::cout << "Protocol A" << std::endl;
 				}
-				else if (countdown > 360 * sampleRate) {
+				else if (countdown > (120 + 360) * sampleRate) {
 					std::cout << "Protocol D" << std::endl;
 				}
 				else if (countdown > 0 * sampleRate) {
@@ -1593,7 +1595,7 @@ Skip:
 			}
 			//std::cout << "Protocol " << protocol << std::endl;
 
-			if (countdown > 1230 * sampleRate || (countdown > 930 * sampleRate && countdown <= 960 * sampleRate) || (countdown > 630 * sampleRate && countdown <= 660 * sampleRate) || (countdown > 270 * sampleRate && countdown <= 300 * sampleRate)) {
+			if (countdown > (360 + 1230) * sampleRate || (countdown > (240 + 930) * sampleRate && countdown <= (240 + 960) * sampleRate) || (countdown > (120 + 630) * sampleRate && countdown <= (120 + 660) * sampleRate) || (countdown > 270 * sampleRate && countdown <= 300 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 1: Baseline gain = " << gain << std::endl;
 				}
@@ -1604,7 +1606,7 @@ Skip:
 					std::cout << "Stage 1: Gain = " << gain << std::endl;
 				}
 			}
-			else if (countdown > 1200 * sampleRate || (countdown > 900 * sampleRate && countdown <= 930 * sampleRate) || (countdown > 600 * sampleRate && countdown <= 630 * sampleRate) || (countdown > 240 * sampleRate && countdown <= 270 * sampleRate)) {
+			else if (countdown > (360 + 1200) * sampleRate || (countdown > (240 + 900) * sampleRate && countdown <= (240 + 930) * sampleRate) || (countdown > (120 + 600) * sampleRate && countdown <= (120 + 630) * sampleRate) || (countdown > 240 * sampleRate && countdown <= 270 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 2: Baseline gain = " << gain << std::endl;
 				}
@@ -1615,7 +1617,7 @@ Skip:
 					std::cout << "Stage 2: Gain = " << gain << std::endl;
 				}
 			}
-			else if (countdown > 1170 * sampleRate || (countdown > 870 * sampleRate && countdown <= 900 * sampleRate) || (countdown > 570 * sampleRate && countdown <= 600 * sampleRate) || (countdown > 210 * sampleRate && countdown <= 240 * sampleRate)) {
+			else if (countdown > (360 + 1170) * sampleRate || (countdown > (240 + 870) * sampleRate && countdown <= (240 + 900) * sampleRate) || (countdown > (120 + 570) * sampleRate && countdown <= (120 + 600) * sampleRate) || (countdown > 210 * sampleRate && countdown <= 240 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 3: Baseline gain = " << gain << std::endl;
 				}
@@ -1626,7 +1628,7 @@ Skip:
 					std::cout << "Stage 3: Gain = " << gain << std::endl;
 				}
 			}
-			else if (countdown > 1140 * sampleRate || (countdown > 840 * sampleRate && countdown <= 870 * sampleRate) || (countdown > 540 * sampleRate && countdown <= 570 * sampleRate) || (countdown > 180 * sampleRate && countdown <= 210 * sampleRate)) {
+			else if (countdown > (360 + 1140) * sampleRate || (countdown > (240 + 840) * sampleRate && countdown <= (240 + 870) * sampleRate) || (countdown > (120 + 540) * sampleRate && countdown <= (120 + 570) * sampleRate) || (countdown > 180 * sampleRate && countdown <= 210 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 4: Baseline gain = " << gain << std::endl;
 				}
@@ -1637,7 +1639,7 @@ Skip:
 					std::cout << "Stage 4: Gain = " << gain << std::endl;
 				}
 			}
-			else if (countdown > 1110 * sampleRate || (countdown > 810 * sampleRate && countdown <= 840 * sampleRate) || (countdown > 510 * sampleRate && countdown <= 540 * sampleRate) || (countdown > 150 * sampleRate && countdown <= 180 * sampleRate)) {
+			else if (countdown > (360 + 1110) * sampleRate || (countdown > (240 + 810) * sampleRate && countdown <= (240 + 840) * sampleRate) || (countdown > (120 + 510) * sampleRate && countdown <= (120 + 540) * sampleRate) || (countdown > 150 * sampleRate && countdown <= 180 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 5: Baseline gain = " << gain << std::endl;
 				}
@@ -1648,7 +1650,7 @@ Skip:
 					std::cout << "Stage 5: Gain = " << gain << std::endl;
 				}
 			}
-			else if (countdown > 1080 * sampleRate || (countdown > 780 * sampleRate && countdown <= 810 * sampleRate) || (countdown > 480 * sampleRate && countdown <= 510 * sampleRate) || (countdown > 120 * sampleRate && countdown <= 150 * sampleRate)) {
+			else if (countdown > (360 + 1080) * sampleRate || (countdown > (240 + 780) * sampleRate && countdown <= (240 + 810) * sampleRate) || (countdown > (120 + 480) * sampleRate && countdown <= (120 + 510) * sampleRate) || (countdown > 120 * sampleRate && countdown <= 150 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 6: Baseline gain = " << gain << std::endl;
 				}
@@ -1659,7 +1661,7 @@ Skip:
 					std::cout << "Stage 6: Gain = " << gain << std::endl;
 				}
 			}
-			else if (countdown > 1050 * sampleRate || (countdown > 750 * sampleRate && countdown <= 780 * sampleRate) || (countdown > 450 * sampleRate && countdown <= 480 * sampleRate) || (countdown > 90 * sampleRate && countdown <= 120 * sampleRate)) {
+			else if (countdown > (360 + 1050) * sampleRate || (countdown > (240 + 750) * sampleRate && countdown <= (240 + 780) * sampleRate) || (countdown > (120 + 450) * sampleRate && countdown <= (120 + 480) * sampleRate) || (countdown > 90 * sampleRate && countdown <= 120 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 7: Baseline gain = " << gain << std::endl;
 				}
@@ -1670,7 +1672,7 @@ Skip:
 					std::cout << "Stage 7: Gain = " << gain << std::endl;
 				}
 			}
-			else if (countdown > 1020 * sampleRate || (countdown > 720 * sampleRate && countdown <= 750 * sampleRate) || (countdown > 420 * sampleRate && countdown <= 450 * sampleRate) || (countdown > 60 * sampleRate && countdown <= 90 * sampleRate)) {
+			else if (countdown > (360 + 1020) * sampleRate || (countdown > (240 + 720) * sampleRate && countdown <= (240 + 750) * sampleRate) || (countdown > (120 + 420) * sampleRate && countdown <= (120 + 450) * sampleRate) || (countdown > 60 * sampleRate && countdown <= 90 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 8: Baseline gain = " << gain << std::endl;
 				}
@@ -1681,7 +1683,7 @@ Skip:
 					std::cout << "Stage 8: Gain = " << gain << std::endl;
 				}
 			}
-			else if ((countdown > 390 * sampleRate && countdown <= 420 * sampleRate) || (countdown > 30 * sampleRate && countdown <= 60 * sampleRate)) {
+			else if ((countdown > (120 + 390) * sampleRate && countdown <= (120 + 420) * sampleRate) || (countdown > 30 * sampleRate && countdown <= 60 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 9: Baseline gain = " << gain << std::endl;
 				}
@@ -1692,7 +1694,7 @@ Skip:
 					std::cout << "Stage 9: Gain = " << gain << std::endl;
 				}
 			}
-			else if ((countdown > 360 * sampleRate && countdown <= 390 * sampleRate) || (countdown > 0 * sampleRate && countdown <= 30 * sampleRate)) {
+			else if ((countdown > (120 + 360) * sampleRate && countdown <= (120 + 390) * sampleRate) || (countdown > 0 * sampleRate && countdown <= 30 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 10: Baseline gain = " << gain << std::endl;
 				}
@@ -1710,9 +1712,18 @@ Skip:
 				preTriggered = 0;
 				//*/
 			}
-			if ((countdown > 960 * sampleRate && countdown <= 1020 * sampleRate) || (countdown > 660 * sampleRate && countdown <= 720 * sampleRate) || (countdown > 300 * sampleRate && countdown <= 360 * sampleRate)) {
+			if ((countdown > (240 + 960) * sampleRate && countdown <= (360 + 1020) * sampleRate) || (countdown > (120 + 660) * sampleRate && countdown <= (240 + 720) * sampleRate) || (countdown > 300 * sampleRate && countdown <= (120 + 360) * sampleRate)) {
 				std::cout << "Resting." << std::endl;
-				std::cout << "Approximately " << fmod(double(countdown) / sampleRate, 60) << " seconds remaining." << std::endl;
+				if (countdown > (240 + 960) * sampleRate) {
+					std::cout << "Approximately " << floorf(fmod(double(countdown - ((240 + 960) * sampleRate)) / sampleRate, 180) / 60) << " minutes, " << fmod(double(countdown - ((240 + 960) * sampleRate)) / sampleRate, 60) << " seconds remaining." << std::endl;
+				}
+				else if (countdown > (120 + 660) * sampleRate) {
+					std::cout << "Approximately " << floorf(fmod(double(countdown - ((120 + 660) * sampleRate)) / sampleRate, 180) / 60) << " minutes, " << fmod(double(countdown - ((120 + 660) * sampleRate)) / sampleRate, 60) << " seconds remaining." << std::endl;
+				}
+				else {
+					std::cout << "Approximately " << floorf(fmod(double(countdown - (300 * sampleRate)) / sampleRate, 180) / 60) << " minutes, " << fmod(double(countdown - (300 * sampleRate)) / sampleRate, 60) << " seconds remaining." << std::endl;
+
+				}
 			}
 			else {
 				std::cout << "Approximately " << fmod(double(countdown) / sampleRate, 30) << " seconds remaining." << std::endl;
@@ -2737,7 +2748,7 @@ int main(int argc, char **argv) {
 	printf("\nEnter the width of the moth in centimeters: ");
 	scanf("%f", &tempMothWidth);
 	mothWidth = tempMothWidth / 100.0;
-	printf("Please wait about 20 seconds\n");
+	printf("Please wait about 40 seconds\n");
 	//*/
 	//printf("Please wait about 20 seconds\n");
 	/*
@@ -2752,7 +2763,7 @@ int main(int argc, char **argv) {
 	// IMPORTANT
 	//changed Dev1 to Dev5 as the connection established. So verify what Dev is being used to update this code. DEV5 is our force torque.
 	DAQmxErrChk(DAQmxCreateAIVoltageChan(taskHandle, "Dev1/ai0:6", "", DAQmx_Val_Diff, -10.0, 10.0, DAQmx_Val_Volts, NULL));
-	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle, "", (float64)sampleRate, DAQmx_Val_Rising, DAQmx_Val_ContSamps, (int)(20.01 * sampleRate)));
+	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle, "", (float64)sampleRate, DAQmx_Val_Rising, DAQmx_Val_ContSamps, (int)(20.01 * sampleRate * 2)));
 	// DAQmx Start Code
 	DAQmxErrChk(DAQmxStartTask(taskHandle));
 	//printf("\ngot here");
