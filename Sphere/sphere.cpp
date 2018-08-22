@@ -85,6 +85,7 @@ int protocol = 0; // Which protocol is being used
 bool preTrigger = false; //True if we trigger before recording
 bool preTriggered = false; //True if we have already pressed the trigger before the recording.
 bool protocolWritten = false; //True if we've written a protocol to file and currently should not write again.
+bool learningExperiment = false; //True if we're doing a learning experiment, false if not.
 int gainIt = 1;
 float gain = gains[gainIt]; // This is the gain that we'll be changing.
 int increment = 0;
@@ -277,15 +278,33 @@ void writeToFile() {
 	strftime(buffer, 80, "%m%d%Y", info);
 
 	char filename[80];
-	sprintf(filename, "./Data/Moth_FT_%s_%03d.txt", buffer, increment);
-	bool exists = exists_test3(filename);
 
-	///*
-	while (exists) {
-		increment++;
+	if (learningExperiment) {
+		char directory[80];
+		sprintf(directory, "./Data/Learning/%s/", buffer);
+		CreateDirectory(directory, NULL);
+		sprintf(filename, "./Data/Learning/%s/Moth_FT_%s_%03d.txt", buffer, buffer, increment);
+		bool exists = exists_test3(filename);
+
+		///*
+		while (exists) {
+			increment++;
+			sprintf(filename, "./Data/Learning/%s/Moth_FT_%s_%03d.txt", buffer, buffer, increment);
+			//printf("\n%s", filename);
+			exists = exists_test3(filename);
+		}
+	}
+	else {
 		sprintf(filename, "./Data/Moth_FT_%s_%03d.txt", buffer, increment);
-		//printf("\n%s", filename);
-		exists = exists_test3(filename);
+		bool exists = exists_test3(filename);
+
+		///*
+		while (exists) {
+			increment++;
+			sprintf(filename, "./Data/Moth_FT_%s_%03d.txt", buffer, increment);
+			//printf("\n%s", filename);
+			exists = exists_test3(filename);
+		}
 	}
 	//*/
 
@@ -913,13 +932,13 @@ vert(float theta, float phi, int i, bool color)
 	arr2[9 * i + 8] = 1;
 	//*/
 	///*
-	if (color && !drifting) {
+	if (color && !learningExperiment) {
 		arr2[9 * i + 6] = (float)0.5 * cosf(PI * theta / viewingAngle) + 0.5;
 		arr2[9 * i + 7] = (float)0.5 * cosf(PI * theta / viewingAngle) + 0.5;
 		arr2[9 * i + 8] = (float)0.5 * cosf(PI * theta / viewingAngle) + 0.5;
 	}
 	//*/
-	else if (color && drifting) {
+	else if (color && learningExperiment) {
 		if (fmod(theta, 2 * viewingAngle) < viewingAngle) {
 			arr2[9 * i + 6] = 1.0;
 			arr2[9 * i + 7] = 1.0;
@@ -996,7 +1015,7 @@ DrawSphere(float del, bool color)
 				vert(theta, phi, n, color);
 				vert(theta, phi2, n + 1, color);
 			}
-			else if ((drifting && isSingle) && theta <= 2.5 * viewingAngle && theta >= 1.5 * viewingAngle) {
+			else if ((drifting && isSingle) && theta <= 3.5 * viewingAngle && theta >= 1 * viewingAngle) {
 				vert(theta, phi, n, color);
 				vert(theta, phi2, n + 1, color);
 			}
@@ -1847,7 +1866,7 @@ void display1(void) {
 			angAcc = 0.0;
 			angVel = 0.0;
 			//CLangle = 0.0;
-			CLangle = -2 * viewingAngle;
+			CLangle = -(2 + (float)learningExperiment * 4.0/10.0) * viewingAngle;
 			angle = 0;
 			printf("\nCentering");
 		}
@@ -2730,10 +2749,19 @@ int main(int argc, char **argv) {
 	float tempWeight;
 	float tempLength;
 	float tempMothWidth;
+	int experiment;
 	float64 tempSampleRate;
 	//printf("Press left or right arrows to move our rectangle\n");
 	///*
-	printf("Enter the sampling rate: ");
+	printf("Input a number, 1 or 2, to indicate whether this is \n\n1. A coordination experiment\n\nOR\n\n2. A learning/adaptation experiment:\n");
+	scanf("%i", &experiment);
+	if (experiment == 2) {
+		learningExperiment = true;
+	}
+	else {
+		learningExperiment = false;
+	}
+	printf("\nEnter the sampling rate: ");
 	scanf("%lf", &tempSampleRate); // "%lf" instead of "%f"
 	sampleRate = tempSampleRate;
 	window = (int)(floorf(sampleRate / 60) + 1) * 2;
