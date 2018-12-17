@@ -80,10 +80,12 @@ float length = 1; // in m
 float mothWidth = 1; // in m
 float gains[5] = { 0.5, 1, 1.5, 2, 2.5 };
 float conditions[5] = { -1, 0.1, 0.5, 2, 10 }; // least to greatest
-float protocalGains[8] = { 1, 1, 0.5, 2, 10, 0.1, -1, 1 };
-int protocal = 0; // Which protocal is being used
+float protocolGains[36] = { 1, 1, 0.5, 2, 10, 0.1, -1, 1, 1, 1, 0.5, 2, 10, 0.1, -1, 1, 1, 1, 0.5, 2, 10, 0.1, -1, 1, 1, 1, 0.5, 2, 10, 0.1, -1, 1, 1, 1, 0.5, 2 };
+int protocol = 0; // Which protocol is being used
 bool preTrigger = false; //True if we trigger before recording
 bool preTriggered = false; //True if we have already pressed the trigger before the recording.
+bool protocolWritten = false; //True if we've written a protocol to file and currently should not write again.
+bool learningExperiment = false; //True if we're doing a learning experiment, false if not.
 int gainIt = 1;
 float gain = gains[gainIt]; // This is the gain that we'll be changing.
 int increment = 0;
@@ -121,7 +123,7 @@ int32       error = 0;
 TaskHandle  taskHandle = 0;
 int32       read;
 float64     data[1400700];
-float64		currentData[1400700];
+float64		currentData[1400700*2];
 /*
 float64*		currai0 = new float64[20010000];
 float64*		currai1 = new float64[20010000];
@@ -137,7 +139,7 @@ float64*		currxpcl = new float64[20010000];	// closed loop
 ///*
 const int maxElements = 24000100;
 float64 sampleRate = 10000.0;
-int window = (int)(floorf(sampleRate / 60) + 1) * 2;
+int window = (int)(floorf(sampleRate / 23) + 1) * 2;
 int countdown = maxElements;
 int tempCountdown = countdown;
 //int countdown = 200100;
@@ -217,6 +219,9 @@ static unsigned int freq_start = 0;
 bool freq_measured = 0;
 //bool isNeg = 0; // True if OLangle is negative.
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// This is me trying to debug stuff
+float debuggingStuff = 0.0;
+
 PFNWGLSWAPINTERVALEXTPROC       wglSwapIntervalEXT = NULL;
 PFNWGLGETSWAPINTERVALEXTPROC    wglGetSwapIntervalEXT = NULL;
 
@@ -276,15 +281,33 @@ void writeToFile() {
 	strftime(buffer, 80, "%m%d%Y", info);
 
 	char filename[80];
-	sprintf(filename, "./Data/Moth_FT_%s_%03d.txt", buffer, increment);
-	bool exists = exists_test3(filename);
 
-	///*
-	while (exists) {
-		increment++;
+	if (learningExperiment) {
+		char directory[80];
+		sprintf(directory, "./Data/Learning/%s/", buffer);
+		CreateDirectory(directory, NULL);
+		sprintf(filename, "./Data/Learning/%s/Moth_FT_%s_%03d.txt", buffer, buffer, increment);
+		bool exists = exists_test3(filename);
+
+		///*
+		while (exists) {
+			increment++;
+			sprintf(filename, "./Data/Learning/%s/Moth_FT_%s_%03d.txt", buffer, buffer, increment);
+			//printf("\n%s", filename);
+			exists = exists_test3(filename);
+		}
+	}
+	else {
 		sprintf(filename, "./Data/Moth_FT_%s_%03d.txt", buffer, increment);
-		//printf("\n%s", filename);
-		exists = exists_test3(filename);
+		bool exists = exists_test3(filename);
+
+		///*
+		while (exists) {
+			increment++;
+			sprintf(filename, "./Data/Moth_FT_%s_%03d.txt", buffer, increment);
+			//printf("\n%s", filename);
+			exists = exists_test3(filename);
+		}
 	}
 	//*/
 
@@ -299,8 +322,11 @@ void writeToFile() {
 		if ((continuousRecording || queueit < 200100) && !preTriggered) {
 			j = queueit;
 		}
-		else if (preTriggered) {
+		else if (preTriggered && countdown > 660 * sampleRate) {
 			j = 240 * sampleRate;
+		}
+		else if (preTriggered) {
+			j = 300 * sampleRate;
 		}
 		else {
 			j = 200100;
@@ -909,13 +935,13 @@ vert(float theta, float phi, int i, bool color)
 	arr2[9 * i + 8] = 1;
 	//*/
 	///*
-	if (color && !drifting) {
+	if (color && !learningExperiment) {
 		arr2[9 * i + 6] = (float)0.5 * cosf(PI * theta / viewingAngle) + 0.5;
 		arr2[9 * i + 7] = (float)0.5 * cosf(PI * theta / viewingAngle) + 0.5;
 		arr2[9 * i + 8] = (float)0.5 * cosf(PI * theta / viewingAngle) + 0.5;
 	}
 	//*/
-	else if (color && drifting) {
+	else if (color && learningExperiment) {
 		if (fmod(theta, 2 * viewingAngle) < viewingAngle) {
 			arr2[9 * i + 6] = 1.0;
 			arr2[9 * i + 7] = 1.0;
@@ -992,7 +1018,7 @@ DrawSphere(float del, bool color)
 				vert(theta, phi, n, color);
 				vert(theta, phi2, n + 1, color);
 			}
-			else if ((drifting && isSingle) && theta <= 2.5 * viewingAngle && theta >= 1.5 * viewingAngle) {
+			else if ((drifting && isSingle) && theta <= 3.5 * viewingAngle && theta >= 1 * viewingAngle) {
 				vert(theta, phi, n, color);
 				vert(theta, phi2, n + 1, color);
 			}
@@ -1048,83 +1074,209 @@ void display(void) {
 		//countdown = 200100; // Why?
 	}
 	else if (currai6[queueit - 1] == 0 && !written && !centering && !centered && preTrigger) {
-		countdown = (240 * sampleRate) + read;
+		countdown = (1620 * sampleRate) + read; // 27 minutes
 		preTriggered = 1;
 		//float * randomConditions = randomizeConditions();
-		protocal = (rand() % 6) + 1;
+		protocol = (rand() % 4) + 1;
 
-		switch (protocal) {
-		case 1:
-			protocalGains[0] = 1;
-			protocalGains[1] = conditions[0];
-			protocalGains[2] = 1;
-			protocalGains[3] = conditions[4];
-			protocalGains[4] = conditions[3];
-			protocalGains[5] = 1;
-			protocalGains[6] = conditions[2];
-			protocalGains[7] = conditions[1];
+		switch (protocol) {
+		case 1: // A B C D
+			protocolGains[0] = 1;
+			protocolGains[1] = 0.5;
+			protocolGains[2] = 1;
+			protocolGains[3] = 2;
+			protocolGains[4] = 4;
+			protocolGains[5] = 10;
+			protocolGains[6] = 1;
+			protocolGains[7] = -1;
+
+			protocolGains[8] = 1;
+			protocolGains[9] = 10;
+			protocolGains[10] = 4;
+			protocolGains[11] = 2;
+			protocolGains[12] = 1;
+			protocolGains[13] = 0.5;
+			protocolGains[14] = 1;
+			protocolGains[15] = -1;
+
+			protocolGains[16] = 1;
+			protocolGains[17] = 2;
+			protocolGains[18] = 3;
+			protocolGains[19] = 4;
+			protocolGains[20] = 5;
+			protocolGains[21] = 6;
+			protocolGains[22] = 7;
+			protocolGains[23] = 8;
+			protocolGains[24] = 9;
+			protocolGains[25] = 10;
+
+			protocolGains[26] = 10;
+			protocolGains[27] = 9;
+			protocolGains[28] = 8;
+			protocolGains[29] = 7;
+			protocolGains[30] = 6;
+			protocolGains[31] = 5;
+			protocolGains[32] = 4;
+			protocolGains[33] = 3;
+			protocolGains[34] = 2;
+			protocolGains[35] = 1;
 			break;
-		case 2:
-			protocalGains[0] = 1;
-			protocalGains[1] = conditions[0];
-			protocalGains[2] = 1;
-			protocalGains[3] = conditions[1];
-			protocalGains[4] = conditions[2];
-			protocalGains[5] = 1;
-			protocalGains[6] = conditions[3];
-			protocalGains[7] = conditions[4];
+		case 2: // B A C D
+			protocolGains[0] = 1;
+			protocolGains[1] = 10;
+			protocolGains[2] = 4;
+			protocolGains[3] = 2;
+			protocolGains[4] = 1;
+			protocolGains[5] = 0.5;
+			protocolGains[6] = 1;
+			protocolGains[7] = -1;
+
+			protocolGains[8] = 1;
+			protocolGains[9] = 0.5;
+			protocolGains[10] = 1;
+			protocolGains[11] = 2;
+			protocolGains[12] = 4;
+			protocolGains[13] = 10;
+			protocolGains[14] = 1;
+			protocolGains[15] = -1;
+
+			protocolGains[16] = 1;
+			protocolGains[17] = 2;
+			protocolGains[18] = 3;
+			protocolGains[19] = 4;
+			protocolGains[20] = 5;
+			protocolGains[21] = 6;
+			protocolGains[22] = 7;
+			protocolGains[23] = 8;
+			protocolGains[24] = 9;
+			protocolGains[25] = 10;
+
+			protocolGains[26] = 10;
+			protocolGains[27] = 9;
+			protocolGains[28] = 8;
+			protocolGains[29] = 7;
+			protocolGains[30] = 6;
+			protocolGains[31] = 5;
+			protocolGains[32] = 4;
+			protocolGains[33] = 3;
+			protocolGains[34] = 2;
+			protocolGains[35] = 1;
 			break;
-		case 3:
-			protocalGains[0] = 1;
-			protocalGains[1] = conditions[4];
-			protocalGains[2] = conditions[3];
-			protocalGains[3] = 1;
-			protocalGains[4] = conditions[2];
-			protocalGains[5] = conditions[1];
-			protocalGains[6] = 1;
-			protocalGains[7] = conditions[0];
+		case 3: // A B D C
+			protocolGains[0] = 1;
+			protocolGains[1] = 0.5;
+			protocolGains[2] = 1;
+			protocolGains[3] = 2;
+			protocolGains[4] = 4;
+			protocolGains[5] = 10;
+			protocolGains[6] = 1;
+			protocolGains[7] = -1;
+
+			protocolGains[8] = 1;
+			protocolGains[9] = 10;
+			protocolGains[10] = 4;
+			protocolGains[11] = 2;
+			protocolGains[12] = 1;
+			protocolGains[13] = 0.5;
+			protocolGains[14] = 1;
+			protocolGains[15] = -1;
+
+			protocolGains[16] = 10;
+			protocolGains[17] = 9;
+			protocolGains[18] = 8;
+			protocolGains[19] = 7;
+			protocolGains[20] = 6;
+			protocolGains[21] = 5;
+			protocolGains[22] = 4;
+			protocolGains[23] = 3;
+			protocolGains[24] = 2;
+			protocolGains[25] = 1;
+
+			protocolGains[26] = 1;
+			protocolGains[27] = 2;
+			protocolGains[28] = 3;
+			protocolGains[29] = 4;
+			protocolGains[30] = 5;
+			protocolGains[31] = 6;
+			protocolGains[32] = 7;
+			protocolGains[33] = 8;
+			protocolGains[34] = 9;
+			protocolGains[35] = 10;
 			break;
 		case 4:
-			protocalGains[0] = 1;
-			protocalGains[1] = conditions[1];
-			protocalGains[2] = conditions[2];
-			protocalGains[3] = 1;
-			protocalGains[4] = conditions[3];
-			protocalGains[5] = conditions[4];
-			protocalGains[6] = 1;
-			protocalGains[7] = conditions[0];
+			protocolGains[0] = 1;
+			protocolGains[1] = 10;
+			protocolGains[2] = 4;
+			protocolGains[3] = 2;
+			protocolGains[4] = 1;
+			protocolGains[5] = 0.5;
+			protocolGains[6] = 1;
+			protocolGains[7] = -1;
+
+			protocolGains[8] = 1;
+			protocolGains[9] = 0.5;
+			protocolGains[10] = 1;
+			protocolGains[11] = 2;
+			protocolGains[12] = 4;
+			protocolGains[13] = 10;
+			protocolGains[14] = 1;
+			protocolGains[15] = -1;
+
+			protocolGains[16] = 10;
+			protocolGains[17] = 9;
+			protocolGains[18] = 8;
+			protocolGains[19] = 7;
+			protocolGains[20] = 6;
+			protocolGains[21] = 5;
+			protocolGains[22] = 4;
+			protocolGains[23] = 3;
+			protocolGains[24] = 2;
+			protocolGains[25] = 1;
+
+			protocolGains[26] = 1;
+			protocolGains[27] = 2;
+			protocolGains[28] = 3;
+			protocolGains[29] = 4;
+			protocolGains[30] = 5;
+			protocolGains[31] = 6;
+			protocolGains[32] = 7;
+			protocolGains[33] = 8;
+			protocolGains[34] = 9;
+			protocolGains[35] = 10;
 			break;
+		/*
 		case 5:
-			protocalGains[0] = 1;
-			protocalGains[1] = conditions[4];
-			protocalGains[2] = conditions[1];
-			protocalGains[3] = conditions[3];
-			protocalGains[4] = conditions[2];
-			protocalGains[5] = conditions[0];
-			protocalGains[6] = 1;
-			protocalGains[7] = conditions[0];
+			protocolGains[0] = 1;
+			protocolGains[1] = conditions[4];
+			protocolGains[2] = conditions[1];
+			protocolGains[3] = conditions[3];
+			protocolGains[4] = conditions[2];
+			protocolGains[5] = conditions[0];
+			protocolGains[6] = 1;
+			protocolGains[7] = conditions[0];
 			break;
 		case 6:
-			protocalGains[0] = 1;
-			protocalGains[1] = conditions[1];
-			protocalGains[2] = conditions[4];
-			protocalGains[3] = conditions[2];
-			protocalGains[4] = conditions[3];
-			protocalGains[5] = conditions[0];
-			protocalGains[6] = 1;
-			protocalGains[7] = conditions[0];
+			protocolGains[0] = 1;
+			protocolGains[1] = conditions[1];
+			protocolGains[2] = conditions[4];
+			protocolGains[3] = conditions[2];
+			protocolGains[4] = conditions[3];
+			protocolGains[5] = conditions[0];
+			protocolGains[6] = 1;
+			protocolGains[7] = conditions[0];
 			break;
+			//*/
 		}
 
 		/*
-		protocalGains[0] = 1;
-		protocalGains[1] = 1;
-		protocalGains[2] = randomConditions[0];
-		protocalGains[3] = randomConditions[1];
-		protocalGains[4] = randomConditions[2];
-		protocalGains[5] = randomConditions[3];
-		protocalGains[6] = randomConditions[4];
-		protocalGains[7] = 1;
+		protocolGains[0] = 1;
+		protocolGains[1] = 1;
+		protocolGains[2] = randomConditions[0];
+		protocolGains[3] = randomConditions[1];
+		protocolGains[4] = randomConditions[2];
+		protocolGains[5] = randomConditions[3];
+		protocolGains[6] = randomConditions[4];
+		protocolGains[7] = 1;
 		//*/
 	}
 	if (currai6[queueit - 1] != 0) {
@@ -1137,7 +1289,7 @@ void display(void) {
 	//glTranslatef(0, 0, -1000);
 
 	//*
-	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, -1, -1.0, DAQmx_Val_GroupByChannel, currentData, 1400700, &read, NULL));
+	DAQmxErrChk(DAQmxReadAnalogF64(taskHandle, -1, -1.0, DAQmx_Val_GroupByChannel, currentData, 1400700*2, &read, NULL));
 	goto Skip;
 
 Error:
@@ -1175,6 +1327,7 @@ Skip:
 		//currxp[queueit] = tempxp;
 		//currxp[queueit] = fmod(OLangle,360.0);
 		currxp[queueit] = OLangle;
+		//currxp[queueit] = debuggingStuff;
 		//currxpcl[queueit] = tempxp - aggrlx;
 		currxpcl[queueit] = OLangle + CLangle;
 		//currgain[queueit] = gain;
@@ -1231,31 +1384,159 @@ Skip:
 	}
 	//*/
 	if (preTrigger && preTriggered) {
-		if (countdown > 210 * sampleRate) {
-			gain = protocalGains[0];
+		if (countdown > (360 + 1230) * sampleRate) {
+			clear = false;
+			protocolWritten = false;
+			gain = protocolGains[0];
 			closedLoop = 1;
+		}
+		else if (countdown > (360 + 1200) * sampleRate) {
+			closedLoop = 1;
+			gain = protocolGains[1];
+		}
+		else if (countdown > (360 + 1170) * sampleRate) {
+			gain = protocolGains[2];
+		}
+		else if (countdown > (360 + 1140) * sampleRate) {
+			gain = protocolGains[3];
+		}
+		else if (countdown > (360 + 1110) * sampleRate) {
+			gain = protocolGains[4];
+		}
+		else if (countdown > (360 + 1080) * sampleRate) {
+			gain = protocolGains[5];
+		}
+		else if (countdown > (360 + 1050) * sampleRate) {
+			gain = protocolGains[6];
+		}
+		else if (countdown > (360 + 1020) * sampleRate) {
+			gain = protocolGains[7];
+		}
+		
+		// Minute break
+		else if (countdown > (240 + 960) * sampleRate) {
+			clear = true;
+			if (!protocolWritten) {
+				std::cout << "Done with first protocol." << std::endl;
+				writeToFile();
+				protocolWritten = true;
+			}
+		}
+		else if (countdown > (240 + 930) * sampleRate) {
+			clear = false;
+			protocolWritten = false;
+			gain = protocolGains[8];
+			//closedLoop = 1;
+		}
+		else if (countdown > (240 + 900) * sampleRate) {
+			closedLoop = 1;
+			gain = protocolGains[9];
+		}
+		else if (countdown > (240 + 870) * sampleRate) {
+			gain = protocolGains[10];
+		}
+		else if (countdown > (240 + 840) * sampleRate) {
+			gain = protocolGains[11];
+		}
+		else if (countdown > (240 + 810) * sampleRate) {
+			gain = protocolGains[12];
+		}
+		else if (countdown > (240 + 780) * sampleRate) {
+			gain = protocolGains[13];
+		}
+		else if (countdown > (240 + 750) * sampleRate) {
+			gain = protocolGains[14];
+		}
+		else if (countdown > (240 + 720) * sampleRate) {
+			gain = protocolGains[15];
+		}
+
+		// Minute break
+		else if (countdown > (120 + 660) * sampleRate) {
+			clear = true;
+			if (!protocolWritten) {
+				std::cout << "Done with second protocol." << std::endl;
+				writeToFile();
+				protocolWritten = true;
+			}
+		}
+		else if (countdown > (120 + 630) * sampleRate) {
+			clear = false;
+			protocolWritten = false;
+			gain = protocolGains[16];
+			//closedLoop = 1;
+		}
+		else if (countdown > (120 + 600) * sampleRate) {
+			closedLoop = 1;
+			gain = protocolGains[17];
+		}
+		else if (countdown > (120 + 570) * sampleRate) {
+			gain = protocolGains[18];
+		}
+		else if (countdown > (120 + 540) * sampleRate) {
+			gain = protocolGains[19];
+		}
+		else if (countdown > (120 + 510) * sampleRate) {
+			gain = protocolGains[20];
+		}
+		else if (countdown > (120 + 480) * sampleRate) {
+			gain = protocolGains[21];
+		}
+		else if (countdown > (120 + 450) * sampleRate) {
+			gain = protocolGains[22];
+		}
+		else if (countdown > (120 + 420) * sampleRate) {
+			gain = protocolGains[23];
+		}
+		else if (countdown > (120 + 390) * sampleRate) {
+			gain = protocolGains[24];
+			//closedLoop = 1;
+		}
+		else if (countdown > (120 + 360) * sampleRate) {
+			closedLoop = 1;
+			gain = protocolGains[25];
+		}
+
+		// Minute break
+		else if (countdown > 300 * sampleRate) {
+			clear = true;
+			if (!protocolWritten) {
+				std::cout << "Done with third protocol." << std::endl;
+				writeToFile();
+				protocolWritten = true;
+			}
+		}
+		else if (countdown > 270 * sampleRate) {
+			protocolWritten = false;
+			clear = false;
+			gain = protocolGains[26];
+		}
+		else if (countdown > 240 * sampleRate) {
+			gain = protocolGains[27];
+		}
+		else if (countdown > 210 * sampleRate) {
+			gain = protocolGains[28];
 		}
 		else if (countdown > 180 * sampleRate) {
-			closedLoop = 1;
-			gain = protocalGains[1];
+			gain = protocolGains[29];
 		}
 		else if (countdown > 150 * sampleRate) {
-			gain = protocalGains[2];
+			gain = protocolGains[30];
 		}
 		else if (countdown > 120 * sampleRate) {
-			gain = protocalGains[3];
+			gain = protocolGains[31];
 		}
 		else if (countdown > 90 * sampleRate) {
-			gain = protocalGains[4];
+			gain = protocolGains[32];
 		}
 		else if (countdown > 60 * sampleRate) {
-			gain = protocalGains[5];
+			gain = protocolGains[33];
 		}
 		else if (countdown > 30 * sampleRate) {
-			gain = protocalGains[6];
+			gain = protocolGains[34];
 		}
-		else if (countdown > 0) {
-			gain = protocalGains[7];
+		else if (countdown > 0 * sampleRate) {
+			gain = protocolGains[35];
 		}
 		else {
 			std::cout << "Done." << std::endl;
@@ -1273,9 +1554,71 @@ Skip:
 	if (delta_t >= 1000) {
 		if (preTrigger && preTriggered) {
 			std::cout << double(fps_frames) << " FPS" << std::endl;
-			std::cout << "Protocal " << protocal << std::endl;
+			switch (protocol) {
+			case 1:
+				std::cout << "A B C D" << std::endl;
+				if (countdown > (360 + 1020) * sampleRate) {
+					std::cout << "Protocol A" << std::endl;
+				}
+				else if (countdown > (240 + 720) * sampleRate) {
+					std::cout << "Protocol B" << std::endl;
+				}
+				else if (countdown > (120 + 360) * sampleRate) {
+					std::cout << "Protocol C" << std::endl;
+				}
+				else if (countdown > 0 * sampleRate) {
+					std::cout << "Protocol D" << std::endl;
+				}
+				break;
+			case 2:
+				std::cout << "B A C D" << std::endl;
+				if (countdown > (360 + 1020) * sampleRate) {
+					std::cout << "Protocol B" << std::endl;
+				}
+				else if (countdown > (240 + 720) * sampleRate) {
+					std::cout << "Protocol A" << std::endl;
+				}
+				else if (countdown > (120 + 360) * sampleRate) {
+					std::cout << "Protocol C" << std::endl;
+				}
+				else if (countdown > 0 * sampleRate) {
+					std::cout << "Protocol D" << std::endl;
+				}
+				break;
+			case 3:
+				std::cout << "A B D C" << std::endl;
+				if (countdown > (360 + 1020) * sampleRate) {
+					std::cout << "Protocol A" << std::endl;
+				}
+				else if (countdown > (240 + 720) * sampleRate) {
+					std::cout << "Protocol B" << std::endl;
+				}
+				else if (countdown > (120 + 360) * sampleRate) {
+					std::cout << "Protocol D" << std::endl;
+				}
+				else if (countdown > 0 * sampleRate) {
+					std::cout << "Protocol C" << std::endl;
+				}
+				break;
+			case 4:
+				std::cout << "B A D C" << std::endl;
+				if (countdown > (360 + 1020) * sampleRate) {
+					std::cout << "Protocol B" << std::endl;
+				}
+				else if (countdown > (240 + 720) * sampleRate) {
+					std::cout << "Protocol A" << std::endl;
+				}
+				else if (countdown > (120 + 360) * sampleRate) {
+					std::cout << "Protocol D" << std::endl;
+				}
+				else if (countdown > 0 * sampleRate) {
+					std::cout << "Protocol C" << std::endl;
+				}
+				break;
+			}
+			//std::cout << "Protocol " << protocol << std::endl;
 
-			if (countdown > 210 * sampleRate) {
+			if (countdown > (360 + 1230) * sampleRate || (countdown > (240 + 930) * sampleRate && countdown <= (240 + 960) * sampleRate) || (countdown > (120 + 630) * sampleRate && countdown <= (120 + 660) * sampleRate) || (countdown > 270 * sampleRate && countdown <= 300 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 1: Baseline gain = " << gain << std::endl;
 				}
@@ -1286,7 +1629,7 @@ Skip:
 					std::cout << "Stage 1: Gain = " << gain << std::endl;
 				}
 			}
-			else if (countdown > 180 * sampleRate) {
+			else if (countdown > (360 + 1200) * sampleRate || (countdown > (240 + 900) * sampleRate && countdown <= (240 + 930) * sampleRate) || (countdown > (120 + 600) * sampleRate && countdown <= (120 + 630) * sampleRate) || (countdown > 240 * sampleRate && countdown <= 270 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 2: Baseline gain = " << gain << std::endl;
 				}
@@ -1297,7 +1640,7 @@ Skip:
 					std::cout << "Stage 2: Gain = " << gain << std::endl;
 				}
 			}
-			else if (countdown > 150 * sampleRate) {
+			else if (countdown > (360 + 1170) * sampleRate || (countdown > (240 + 870) * sampleRate && countdown <= (240 + 900) * sampleRate) || (countdown > (120 + 570) * sampleRate && countdown <= (120 + 600) * sampleRate) || (countdown > 210 * sampleRate && countdown <= 240 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 3: Baseline gain = " << gain << std::endl;
 				}
@@ -1308,7 +1651,7 @@ Skip:
 					std::cout << "Stage 3: Gain = " << gain << std::endl;
 				}
 			}
-			else if (countdown > 120 * sampleRate) {
+			else if (countdown > (360 + 1140) * sampleRate || (countdown > (240 + 840) * sampleRate && countdown <= (240 + 870) * sampleRate) || (countdown > (120 + 540) * sampleRate && countdown <= (120 + 570) * sampleRate) || (countdown > 180 * sampleRate && countdown <= 210 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 4: Baseline gain = " << gain << std::endl;
 				}
@@ -1319,7 +1662,7 @@ Skip:
 					std::cout << "Stage 4: Gain = " << gain << std::endl;
 				}
 			}
-			else if (countdown > 90 * sampleRate) {
+			else if (countdown > (360 + 1110) * sampleRate || (countdown > (240 + 810) * sampleRate && countdown <= (240 + 840) * sampleRate) || (countdown > (120 + 510) * sampleRate && countdown <= (120 + 540) * sampleRate) || (countdown > 150 * sampleRate && countdown <= 180 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 5: Baseline gain = " << gain << std::endl;
 				}
@@ -1330,7 +1673,7 @@ Skip:
 					std::cout << "Stage 5: Gain = " << gain << std::endl;
 				}
 			}
-			else if (countdown > 60 * sampleRate) {
+			else if (countdown > (360 + 1080) * sampleRate || (countdown > (240 + 780) * sampleRate && countdown <= (240 + 810) * sampleRate) || (countdown > (120 + 480) * sampleRate && countdown <= (120 + 510) * sampleRate) || (countdown > 120 * sampleRate && countdown <= 150 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 6: Baseline gain = " << gain << std::endl;
 				}
@@ -1341,7 +1684,7 @@ Skip:
 					std::cout << "Stage 6: Gain = " << gain << std::endl;
 				}
 			}
-			else if (countdown > 30 * sampleRate) {
+			else if (countdown > (360 + 1050) * sampleRate || (countdown > (240 + 750) * sampleRate && countdown <= (240 + 780) * sampleRate) || (countdown > (120 + 450) * sampleRate && countdown <= (120 + 480) * sampleRate) || (countdown > 90 * sampleRate && countdown <= 120 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 7: Baseline gain = " << gain << std::endl;
 				}
@@ -1352,7 +1695,7 @@ Skip:
 					std::cout << "Stage 7: Gain = " << gain << std::endl;
 				}
 			}
-			else if (countdown > 0) {
+			else if (countdown > (360 + 1020) * sampleRate || (countdown > (240 + 720) * sampleRate && countdown <= (240 + 750) * sampleRate) || (countdown > (120 + 420) * sampleRate && countdown <= (120 + 450) * sampleRate) || (countdown > 60 * sampleRate && countdown <= 90 * sampleRate)) {
 				if (gain == 1.0) {
 					std::cout << "Stage 8: Baseline gain = " << gain << std::endl;
 				}
@@ -1363,6 +1706,28 @@ Skip:
 					std::cout << "Stage 8: Gain = " << gain << std::endl;
 				}
 			}
+			else if ((countdown > (120 + 390) * sampleRate && countdown <= (120 + 420) * sampleRate) || (countdown > 30 * sampleRate && countdown <= 60 * sampleRate)) {
+				if (gain == 1.0) {
+					std::cout << "Stage 9: Baseline gain = " << gain << std::endl;
+				}
+				else if (gain == -1.0) {
+					std::cout << "Stage 9: Inverted gain" << std::endl;
+				}
+				else {
+					std::cout << "Stage 9: Gain = " << gain << std::endl;
+				}
+			}
+			else if ((countdown > (120 + 360) * sampleRate && countdown <= (120 + 390) * sampleRate) || (countdown > 0 * sampleRate && countdown <= 30 * sampleRate)) {
+				if (gain == 1.0) {
+					std::cout << "Stage 10: Baseline gain = " << gain << std::endl;
+				}
+				else if (gain == -1.0) {
+					std::cout << "Stage 10: Inverted gain" << std::endl;
+				}
+				else {
+					std::cout << "Stage 10: Gain = " << gain << std::endl;
+				}
+			}
 			else {
 				/*
 				std::cout << "Done." << std::endl;
@@ -1370,8 +1735,22 @@ Skip:
 				preTriggered = 0;
 				//*/
 			}
+			if ((countdown > (240 + 960) * sampleRate && countdown <= (360 + 1020) * sampleRate) || (countdown > (120 + 660) * sampleRate && countdown <= (240 + 720) * sampleRate) || (countdown > 300 * sampleRate && countdown <= (120 + 360) * sampleRate)) {
+				std::cout << "Resting." << std::endl;
+				if (countdown > (240 + 960) * sampleRate) {
+					std::cout << "Approximately " << floorf(fmod(double(countdown - ((240 + 960) * sampleRate)) / sampleRate, 180) / 60) << " minutes, " << fmod(double(countdown - ((240 + 960) * sampleRate)) / sampleRate, 60) << " seconds remaining." << std::endl;
+				}
+				else if (countdown > (120 + 660) * sampleRate) {
+					std::cout << "Approximately " << floorf(fmod(double(countdown - ((120 + 660) * sampleRate)) / sampleRate, 180) / 60) << " minutes, " << fmod(double(countdown - ((120 + 660) * sampleRate)) / sampleRate, 60) << " seconds remaining." << std::endl;
+				}
+				else {
+					std::cout << "Approximately " << floorf(fmod(double(countdown - (300 * sampleRate)) / sampleRate, 180) / 60) << " minutes, " << fmod(double(countdown - (300 * sampleRate)) / sampleRate, 60) << " seconds remaining." << std::endl;
 
-			std::cout << "Approximately " << fmod(double(countdown) / sampleRate, 30) << " seconds remaining." << std::endl;
+				}
+			}
+			else {
+				std::cout << "Approximately " << fmod(double(countdown) / sampleRate, 30) << " seconds remaining." << std::endl;
+			}
 			std::cout << std::endl;
 		}
 		else {
@@ -1460,11 +1839,13 @@ void display1(void) {
 		}
 		CLangle += (float)angVel * ((float)read * (1.0 / sampleRate) * (1000.0 / (float)d_t)) * (180.0 / PI);
 		//angVel += (float)angAcc * (read * (1.0 / 10000.0) * 120.0);
+		//debuggingStuff = angVel * (1000.0 / (float)d_t) * (180.0 / PI);
 		if (isnan(angVel + (float)angAcc * ((float)read * (1.0 / sampleRate) * (1000.0 / (float)d_t)) / 1000.0)) {
 			printf("\nWhat the hell again");
 		}
 		//angVel += (float)angAcc * ((float)read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) / 1000.0;
 		angVel = (float)angAcc * gain;
+		//debuggingStuff = angVel * (1000.0 / (float)d_t) * (180.0 / PI);
 		/*
 		printf("\nRead is %i", read);
 		printf("\nAngular Acceleration is %f", angAcc);
@@ -1491,7 +1872,7 @@ void display1(void) {
 			angAcc = 0.0;
 			angVel = 0.0;
 			//CLangle = 0.0;
-			CLangle = -2 * viewingAngle;
+			CLangle = -(2 + (float)learningExperiment * 4.0/10.0) * viewingAngle;
 			angle = 0;
 			printf("\nCentering");
 		}
@@ -1966,16 +2347,6 @@ void letter_pressed(unsigned char key, int x, int y) {
 	float tempGain; //gain
 	switch (key) {
 	case 98: //b
-		if (clear) {
-			yp = 0;
-			clear = false;
-		}
-		else {
-			yp = -800;
-			clear = true;
-		}
-		glutPostRedisplay();
-		break;
 	case 66: //B
 		if (clear) {
 			yp = 0;
@@ -1988,10 +2359,6 @@ void letter_pressed(unsigned char key, int x, int y) {
 		glutPostRedisplay();
 		break;
 	case 99: //c
-		//centering = 1;
-		centering = !centering;
-		centered = 1; //This will be changed to 0 after the check for trigger == 0.
-		break;
 	case 67: //C
 		//centering = 1;
 		centering = !centering;
@@ -2070,16 +2437,6 @@ void letter_pressed(unsigned char key, int x, int y) {
 		glutPostRedisplay();
 		break;
 	case 86: //V will request viewing angle
-		printf("\nInput viewing angle in degrees: ");
-		scanf("%f", &degree);
-		viewingAngle = degree;
-		//barwidth = (float) 0.307975 * tanf(degree * PI / (2.0 * 180.0)) * 1342.281879;
-		printf("%f", viewingAngle);
-		//CreateSphere(R, 0, 0, 0);
-		//DrawSphere(longitudinalSpacing, 0);
-		init();
-		glutPostRedisplay();
-		break;
 	case 118: //v will request viewing angle
 		printf("\nInput viewing angle in degrees: ");
 		scanf("%f", &degree);
@@ -2092,16 +2449,6 @@ void letter_pressed(unsigned char key, int x, int y) {
 		glutPostRedisplay();
 		break;
 	case 70: //F will request frequency
-		printf("\nInput oscillation frequency in Hz: ");
-		scanf("%f", &frequency);
-		//delay = 120.0 / frequency;
-		delay = 1000.0 / frequency;
-		drifting = 0;
-		isWhiteNoise = 0;
-		locust = 0;
-		init();
-		glutPostRedisplay();
-		break;
 	case 102: //f will request frequency
 		printf("\nInput oscillation frequency in Hz: ");
 		scanf("%f", &frequency);
@@ -2114,17 +2461,6 @@ void letter_pressed(unsigned char key, int x, int y) {
 		glutPostRedisplay();
 		break;
 	case 68: //D will request driftDeg
-		printf("\nInput drift velocity in degrees/sec: ");
-		scanf("%f", &driftDeg);
-		//driftVel = 2.0*PI*0.307975*(driftDeg / 360.0)*1342.281879*(1.0 / 120.0);
-		//driftVel = driftDeg / 120.0;
-		driftVel = driftDeg / 1000.0;
-		drifting = 1;
-		isWhiteNoise = 0;
-		locust = 0;
-		init();
-		glutPostRedisplay();
-		break;
 	case 100: //d will request driftDeg
 		printf("\nInput drift velocity in degrees/sec: ");
 		scanf("%f", &driftDeg);
@@ -2138,11 +2474,6 @@ void letter_pressed(unsigned char key, int x, int y) {
 		glutPostRedisplay();
 		break;
 	case 79: //O will make open-loop
-		printf("\nNow in open-loop.");
-		closedLoop = 0;
-		//centering = 1;
-		glutPostRedisplay();
-		break;
 	case 111: //o will make open-loop
 		printf("\nNow in open-loop.");
 		closedLoop = 0;
@@ -2150,22 +2481,12 @@ void letter_pressed(unsigned char key, int x, int y) {
 		glutPostRedisplay();
 		break;
 	case 80: //P will make closed-loop
-		printf("\nNow in closed-loop.");
-		closedLoop = 1;
-		glutPostRedisplay();
-		break;
 	case 112: //p will make closed-loop
 		printf("\nNow in closed-loop.");
 		closedLoop = 1;
 		glutPostRedisplay();
 		break;
 	case 72: //H will make horizontal bars
-		printf("\nBars are now horizontal.");
-		horizontal = 1;
-		spinning = 0;
-		vertical = 0;		//barwidth = barwidthArr[barwidthIt] * 1.763313609;
-		glutPostRedisplay();
-		break;
 	case 104: //h will make horizontal bars
 		printf("\nBars are now horizontal.");
 		horizontal = 1;
@@ -2174,13 +2495,6 @@ void letter_pressed(unsigned char key, int x, int y) {
 		glutPostRedisplay();
 		break;
 	case 76: //L will make vertical bars
-		printf("\nBars are now vertical.");
-		horizontal = 0;
-		spinning = 0;
-		vertical = 1;
-		//barwidth = barwidthArr[barwidthIt];
-		glutPostRedisplay();
-		break;
 	case 108: //l will make vertical bars
 		printf("\nBars are now vertical.");
 		horizontal = 0;
@@ -2190,11 +2504,6 @@ void letter_pressed(unsigned char key, int x, int y) {
 		glutPostRedisplay();
 		break;
 	case 83: //S will make spinny stuff
-		horizontal = 0;
-		spinning = 1;
-		vertical = 0;
-		printf("\nSpinning.");
-		break;
 	case 115: //s will make spinny stuff
 		horizontal = 0;
 		spinning = 1;
@@ -2202,11 +2511,6 @@ void letter_pressed(unsigned char key, int x, int y) {
 		printf("\nSpinning.");
 		break;
 	case 65: //A will request oscillation amplitude in degrees
-		printf("\nInput oscillation amplitude in degrees: ");
-		scanf("%f", &oscAmp);
-		oscillationAmp = oscAmp;
-		glutPostRedisplay();
-		break;
 	case 97: //a will request oscillation amplitude in degrees
 		printf("\nInput oscillation amplitude in degrees: ");
 		scanf("%f", &oscAmp);
@@ -2214,12 +2518,6 @@ void letter_pressed(unsigned char key, int x, int y) {
 		glutPostRedisplay();
 		break;
 	case 87: //W will start whitenoise stimuli
-		isWhiteNoise = 1;
-		printf("\nWhite noise stimulus");
-		drifting = 0;
-		init();
-		glutPostRedisplay();
-		break;
 	case 119: //w will start whitenoise stimuli
 		isWhiteNoise = 1;
 		printf("\nWhite noise stimulus");
@@ -2228,14 +2526,6 @@ void letter_pressed(unsigned char key, int x, int y) {
 		glutPostRedisplay();
 		break;
 	case 82: //R will change the recording timescale between continuous and 20 second intervals
-		continuousRecording = !continuousRecording;
-		if (continuousRecording) {
-			printf("\nRecording continously.");
-		}
-		else {
-			printf("\nRecording 20 second intervals.");
-		}
-		break;
 	case 114: //R will change the recording timescale between continuous and 20 second intervals
 		continuousRecording = !continuousRecording;
 		if (continuousRecording) {
@@ -2246,11 +2536,6 @@ void letter_pressed(unsigned char key, int x, int y) {
 		}
 		break;
 	case 71: //G will prompt the user for gain.
-		printf("\nInput gain: ");
-		scanf("%f", &tempGain);
-		gain = tempGain;
-		glutPostRedisplay();
-		break;
 	case 103: //g will prompt the user for gain.
 		printf("\nInput gain: ");
 		scanf("%f", &tempGain);
@@ -2274,17 +2559,6 @@ void letter_pressed(unsigned char key, int x, int y) {
 		glutPostRedisplay();
 		break;
 	case 85: //U will start the locust stimuli
-		printf("\nInput drift velocity for locust stimuli in degrees/sec: ");
-		scanf("%f", &driftDeg);
-		//driftVel = 2.0*PI*0.307975*(driftDeg / 360.0)*1342.281879*(1.0 / 120.0);
-		//driftVel = driftDeg / 120.0;
-		driftVel = driftDeg / 1000.0;
-		locust = 1;
-		isWhiteNoise = 0;
-		drifting = 0;
-		init();
-		glutPostRedisplay();
-		break;
 	case 117: //u will start the locust stimuli
 		printf("\nInput drift velocity for locust stimuli in degrees/sec: ");
 		scanf("%f", &driftDeg);
@@ -2298,16 +2572,6 @@ void letter_pressed(unsigned char key, int x, int y) {
 		glutPostRedisplay();
 		break;
 	case 84: //T to toggle triggering before or after recording
-		preTrigger = !preTrigger;
-		preTriggered = false;
-		if (preTrigger) {
-			printf("\nPre-trigger mode.");
-		}
-		else {
-			printf("\nPost-trigger mode.");
-			countdown = tempCountdown;
-		}
-		break;
 	case 116: //t to toggle triggering before or after recording
 		preTrigger = !preTrigger;
 		preTriggered = false;
@@ -2374,13 +2638,22 @@ int main(int argc, char **argv) {
 	float tempWeight;
 	float tempLength;
 	float tempMothWidth;
+	int experiment;
 	float64 tempSampleRate;
 	//printf("Press left or right arrows to move our rectangle\n");
 	///*
-	printf("Enter the sampling rate: ");
+	printf("Input a number, 1 or 2, to indicate whether this is \n\n1. A coordination experiment\n\nOR\n\n2. A learning/adaptation experiment:\n");
+	scanf("%i", &experiment);
+	if (experiment == 2) {
+		learningExperiment = true;
+	}
+	else {
+		learningExperiment = false;
+	}
+	printf("\nEnter the sampling rate: ");
 	scanf("%lf", &tempSampleRate); // "%lf" instead of "%f"
 	sampleRate = tempSampleRate;
-	window = (int)(floorf(sampleRate / 60) + 1) * 2;
+	window = (int)(floorf(sampleRate / 23.0) + 1) * 2;
 	//printf("%i", window);
 	//countdown = 20.01 * sampleRate;
 	printf("\nEnter the weight of the moth in grams: ");
@@ -2392,7 +2665,7 @@ int main(int argc, char **argv) {
 	printf("\nEnter the width of the moth in centimeters: ");
 	scanf("%f", &tempMothWidth);
 	mothWidth = tempMothWidth / 100.0;
-	printf("Please wait about 20 seconds\n");
+	printf("Please wait about 40 seconds\n");
 	//*/
 	//printf("Please wait about 20 seconds\n");
 	/*
@@ -2407,7 +2680,7 @@ int main(int argc, char **argv) {
 	// IMPORTANT
 	//changed Dev1 to Dev5 as the connection established. So verify what Dev is being used to update this code. DEV5 is our force torque.
 	DAQmxErrChk(DAQmxCreateAIVoltageChan(taskHandle, "Dev1/ai0:6", "", DAQmx_Val_Diff, -10.0, 10.0, DAQmx_Val_Volts, NULL));
-	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle, "", (float64)sampleRate, DAQmx_Val_Rising, DAQmx_Val_ContSamps, (int)(20.01 * sampleRate)));
+	DAQmxErrChk(DAQmxCfgSampClkTiming(taskHandle, "", (float64)sampleRate, DAQmx_Val_Rising, DAQmx_Val_ContSamps, (int)(20.01 * sampleRate * 2)));
 	// DAQmx Start Code
 	DAQmxErrChk(DAQmxStartTask(taskHandle));
 	//printf("\ngot here");
