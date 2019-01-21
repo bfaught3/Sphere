@@ -1773,7 +1773,8 @@ Skip:
 	//glutSwapBuffers();
 
 	//angle++; //Not really the angle, more like the time step incrementing thing.
-	angle += d_t;
+	//angle += d_t;
+	angle += (float)read * (1.0 / sampleRate) * 1000.0;
 	glutSetWindow(window1);
 	glutPostRedisplay();
 	glutSetWindow(window2);
@@ -1804,14 +1805,16 @@ void display1(void) {
 		float angAcc = 0.0;
 		if (horizontal) {
 			//float angAcc = (float)(T / (2.43 / 10000000.0)) * (1.0 / 120.0) * (1.0 / 120.0);
-			angAcc = (float)((T / 1000.0) / Iyy) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+			//angAcc = (float)((T / 1000.0) / Iyy) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+			angAcc = (float)((T / 1000.0) / Iyy) * (1.0/85.0) * (1.0 / 85.0);
 		}
 		else if (spinning) {
 			//angAcc = (float)((T / 1000.0) / Ixx) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
 			spinning2 = 1;
 			float T2 = calcFeedback();
 			//angAcc = ((Izz * (T / 1000.0) + Ixz * (T2 / 1000.0)) / (Ixx * Izz - Ixz * Ixz)) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
-			angAcc = ((T / 1000.0) / Ixx) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+			//angAcc = ((T / 1000.0) / Ixx) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+			angAcc = ((T / 1000.0) / Ixx) * (1.0 / 85.0) * (1.0 / 85.0);
 		}
 		else if (vertical) {
 			float I = weight * ((length / 2.0) * (length / 2.0) + (mothWidth / 2.0) * (mothWidth / 2.0)) / 5.0;
@@ -1823,7 +1826,8 @@ void display1(void) {
 			//}
 			//angAcc = ((Ixx * (T / 1000.0) + Ixz * (T2 / 1000.0)) / (Ixx * Izz - Ixz * Ixz)) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
 			//angAcc = ((T / 1000.0) / Izz) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
-			angAcc = ((T / 1000.0) / I) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+			//angAcc = ((T / 1000.0) / I) * (1.0 / (1000.0 / (float)d_t)) * (1.0 / (1000.0 / (float)d_t));
+			angAcc = ((T / 1000.0) / I) * (1.0 / 85.0) * (1.0 / 85.0);
 			//angAcc = that thingy
 		}
 		else {
@@ -1834,13 +1838,16 @@ void display1(void) {
 		}
 		//CLangle += (float)((angAcc / 2) * (read * (1.0 / 10000.0) * 120.0) * (read * (1.0 / 10000.0) * 120.0) + angVel * (read * (1.0 / 10000.0) * 120.0)) * (180.0 / PI);
 		//CLangle += (float)((angAcc / 2.0) * (read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) * (read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) + angVel * (read * (1.0 / 10000.0) * (1000.0 / (float)d_t))) * (180.0 / PI);
-		if (isnan(CLangle + (float)angVel * ((float)read * (1.0 / sampleRate) * (1000.0 / (float)d_t)) * (180.0 / PI))) {
+		//if (isnan(CLangle + (float)angVel * ((float)read * (1.0 / sampleRate) * (1000.0 / (float)d_t)) * (180.0 / PI))) {
+		if (isnan(CLangle + (float)angVel * ((float)read * (1.0 / sampleRate) * 85.0) * (180.0 / PI))) {
 			printf("\nWhat the hell");
 		}
-		CLangle += (float)angVel * ((float)read * (1.0 / sampleRate) * (1000.0 / (float)d_t)) * (180.0 / PI);
+		//CLangle += (float)angVel * ((float)read * (1.0 / sampleRate) * (1000.0 / (float)d_t)) * (180.0 / PI);
+		CLangle += (float)angVel * ((float)read * (1.0 / sampleRate) * 85.0) * (180.0 / PI);
 		//angVel += (float)angAcc * (read * (1.0 / 10000.0) * 120.0);
 		//debuggingStuff = angVel * (1000.0 / (float)d_t) * (180.0 / PI);
-		if (isnan(angVel + (float)angAcc * ((float)read * (1.0 / sampleRate) * (1000.0 / (float)d_t)) / 1000.0)) {
+		//if (isnan(angVel + (float)angAcc * ((float)read * (1.0 / sampleRate) * (1000.0 / (float)d_t)) / 1000.0)) {
+		if (isnan(angVel + (float)angAcc * ((float)read * (1.0 / sampleRate) * 85.0) / 1000.0)) {
 			printf("\nWhat the hell again");
 		}
 		//angVel += (float)angAcc * ((float)read * (1.0 / 10000.0) * (1000.0 / (float)d_t)) / 1000.0;
@@ -1874,6 +1881,7 @@ void display1(void) {
 			//CLangle = 0.0;
 			CLangle = -(2 + (float)learningExperiment * 4.0/10.0) * viewingAngle;
 			angle = 0;
+			//OLangle = 0;
 			printf("\nCentering");
 		}
 	}
